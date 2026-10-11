@@ -1,4 +1,6 @@
 /* Fulki Travel — marketing site. Brand tokens mirror the booking app (orange-600, Outfit + Manrope). */
+@font-face { font-family: "Outfit"; src: url("/fulki-travel-marketing/assets/fonts/outfit.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("/fulki-travel-marketing/assets/fonts/manrope.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
 :root {
   --orange: #ea580c;
   --orange-600: #ea580c;
@@ -264,14 +266,61 @@ svg:has(> use[href^="#i-"]) {
 .social:hover { color: var(--orange); border-color: var(--orange-100); background: var(--orange-50); }
 .social[href="#"], .social[href=""] { display: none; }
 
+/* Hero trust row */
+.trust { list-style: none; padding: 0; margin: 28px 0 0; display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.trust li { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: .92rem; color: var(--ink-2); }
+.trust svg { color: var(--orange); }
+
+/* Opening hours */
+.hours { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.hours-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.hours-head .card-icon { width: 40px; height: 40px; border-radius: 12px; }
+.hours-head h3 { font-size: 1.1rem; font-weight: 600; margin-right: auto; }
+.status {
+  display: inline-flex; align-items: center; gap: 7px; font-size: .8rem; font-weight: 700;
+  padding: 5px 11px; border-radius: 999px; background: #f5f5f4; color: var(--ink-2);
+}
+.status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #a8a29e; }
+.status.open { background: #ecfdf5; color: #047857; }
+.status.open::before { background: #10b981; box-shadow: 0 0 0 3px rgb(16 185 129 / .2); }
+.hours-list { margin: 14px 0 0; display: grid; gap: 8px; }
+.hours-list div { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: .95rem; }
+.hours-list dt { color: var(--muted); font-weight: 600; }
+.hours-list dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.langs { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); font-size: .92rem; color: var(--ink-2); font-weight: 600; }
+.langs svg { color: var(--orange); }
+
 /* Footer */
 .site-footer { border-top: 1px solid var(--line); padding: 36px 0 44px; }
 .footer-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; color: var(--muted); font-size: .92rem; }
+.footer-info { display: grid; gap: 4px; }
 .footer-inner a:not(.brand) { text-decoration: none; }
 .footer-inner a:not(.brand):hover { color: var(--orange); }
+.privacy-link { text-decoration: underline !important; text-underline-offset: 3px; }
 .footer-inner .brand-mark { width: 30px; height: 30px; border-radius: 9px; }
 .footer-inner .brand-name { font-size: 1.1rem; color: var(--ink); }
 .copy { margin-left: auto; }
+
+/* Privacy dialog */
+.privacy {
+  width: min(680px, 100% - 32px); max-height: min(82vh, 760px); padding: 0; border: 0; border-radius: 22px;
+  background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -20px rgb(0 0 0 / .45); overflow: hidden;
+}
+.privacy[open] { display: flex; animation: pop .35s var(--ease); }
+.privacy:focus, .privacy:focus-visible { outline: none; }
+.privacy::backdrop { background: rgb(12 10 9 / .45); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); animation: fade .3s ease; }
+@keyframes pop { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+@keyframes fade { from { opacity: 0; } }
+.privacy-inner { display: flex; flex-direction: column; width: 100%; min-height: 0; }
+.privacy-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
+.privacy-head h2 { font-size: 1.35rem; font-weight: 700; }
+.privacy-close { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.privacy-close:hover { background: var(--bg); }
+.privacy-body { padding: 8px 24px 26px; overflow-y: auto; overscroll-behavior: contain; font-size: .95rem; color: var(--ink-2); }
+.privacy-body h3 { font-size: 1.02rem; font-weight: 600; color: var(--ink); margin: 20px 0 6px; }
+.privacy-body a { color: var(--orange); }
+.privacy-body .muted { color: var(--muted); font-size: .85rem; margin-top: 12px; }
+body:has(.privacy[open]) { overflow: hidden; }
 
 /* Scroll reveal (only when JS is running, so content is never hidden without it) */
 .js .reveal { opacity: 0; transform: translateY(18px); transition: opacity .8s var(--ease), transform .8s var(--ease); }

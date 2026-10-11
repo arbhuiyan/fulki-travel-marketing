@@ -12,9 +12,8 @@
   <meta property="og:url" content="https://arbhuiyan.github.io/fulki-travel-marketing/" />
   <link rel="canonical" href="https://arbhuiyan.github.io/fulki-travel-marketing/" />
   <link rel="icon" href="/fulki-travel-marketing/assets/favicon.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="preload" href="/fulki-travel-marketing/assets/fonts/outfit.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fulki-travel-marketing/assets/fonts/manrope.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/fulki-travel-marketing/styles.css" />
   <script type="application/ld+json">
   {
@@ -23,6 +22,12 @@
     "name": "Fulki Travel",
     "telephone": "+39 0444 022494",
     "email": "info@fulkitravels.com",
+    "vatID": "IT03723010249",
+    "knowsLanguage": ["it", "en", "bn", "hi"],
+    "openingHoursSpecification": [
+      { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], "opens": "09:00", "closes": "13:00" },
+      { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], "opens": "15:00", "closes": "19:00" }
+    ],
     "address": {
       "@type": "PostalAddress",
       "streetAddress": "Via 4 Martiri",
@@ -53,6 +58,10 @@
       <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></symbol>
       <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l3-2 3 2 2-2 2 2 3-2 3 2V2l-3 2-3-2-2 2-2-2-3 2z"/><path d="M8 9h8M8 13h6"/></symbol>
       <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+      <symbol id="i-badge" viewBox="0 0 24 24"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76z"/><path d="m9 12 2 2 4-4"/></symbol>
+      <symbol id="i-lang" viewBox="0 0 24 24"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
       <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></symbol>
     </defs>
   </svg>
@@ -111,6 +120,10 @@
               <svg><use href="#i-arrow"/></svg>
             </a>
           </div>
+          <ul class="trust reveal">
+            <li><svg><use href="#i-badge"/></svg><span data-l="it">Agenzia accreditata IATA</span><span data-l="en">IATA-accredited agency</span></li>
+            <li><svg><use href="#i-lang"/></svg><span>Italiano · English · <span lang="bn">বাংলা</span> · <span lang="hi">हिन्दी</span></span></li>
+          </ul>
         </div>
 
         <div class="hero-art" aria-hidden="true">
@@ -138,7 +151,7 @@
           </svg>
           <div class="float-card card-a">
             <span class="fc-icon"><svg><use href="#i-headset"/></svg></span>
-            <span><strong><span data-l="it">Assistenza</span><span data-l="en">Support</span></strong><small><span data-l="it">di persona, in italiano e inglese</span><span data-l="en">in person, in Italian and English</span></small></span>
+            <span><strong><span data-l="it">Assistenza</span><span data-l="en">Support</span></strong><small><span data-l="it">di persona, in 4 lingue</span><span data-l="en">in person, in 4 languages</span></small></span>
           </div>
           <div class="float-card card-b">
             <span class="fc-icon"><svg><use href="#i-route"/></svg></span>
@@ -289,6 +302,18 @@
           </a>
 
           <div class="channels">
+            <div class="hours reveal">
+              <div class="hours-head">
+                <span class="card-icon"><svg><use href="#i-clock"/></svg></span>
+                <h3><span data-l="it">Orari di apertura</span><span data-l="en">Opening hours</span></h3>
+                <span class="status" id="open-status" hidden></span>
+              </div>
+              <dl class="hours-list">
+                <div><dt><span data-l="it">Lunedì – Sabato</span><span data-l="en">Monday – Saturday</span></dt><dd>9:00 – 13:00 · 15:00 – 19:00</dd></div>
+                <div><dt><span data-l="it">Domenica</span><span data-l="en">Sunday</span></dt><dd><span data-l="it">Chiuso</span><span data-l="en">Closed</span></dd></div>
+              </dl>
+              <p class="langs"><svg><use href="#i-lang"/></svg><span><span data-l="it">Parliamo</span><span data-l="en">We speak</span> Italiano, English, <span lang="bn">বাংলা</span>, <span lang="hi">हिन्दी</span></span></p>
+            </div>
             <a class="channel reveal" href="https://wa.me/390444022494" target="_blank" rel="noopener">
               <span class="card-icon"><svg><use href="#i-chat"/></svg></span>
               <span><small>WhatsApp</small><strong>+39 0444 022494</strong></span>
@@ -379,10 +404,58 @@
         <span class="brand-mark"><svg><use href="#i-plane"/></svg></span>
         <span class="brand-name">Fulki<span> Travel</span></span>
       </a>
-      <p>Via 4 Martiri, 36071 Arzignano (VI) · <a href="tel:+390444022494">+39 0444 022494</a> · <a href="mailto:info@fulkitravels.com">info@fulkitravels.com</a></p>
+      <div class="footer-info">
+        <p>Via 4 Martiri, 36071 Arzignano (VI) · <a href="tel:+390444022494">+39 0444 022494</a> · <a href="mailto:info@fulkitravels.com">info@fulkitravels.com</a></p>
+        <p>P. IVA IT03723010249 · <span data-l="it">Agenzia accreditata IATA</span><span data-l="en">IATA-accredited agency</span> · <a href="#privacy" class="privacy-link" data-open-privacy>Privacy policy</a></p>
+      </div>
       <p class="copy">© <span id="year">2026</span> Fulki Travel</p>
     </div>
   </footer>
+
+  <dialog class="privacy" id="privacy" aria-labelledby="privacy-title">
+    <div class="privacy-inner">
+      <header class="privacy-head">
+        <h2 id="privacy-title"><span data-l="it">Informativa sulla privacy</span><span data-l="en">Privacy policy</span></h2>
+        <button type="button" class="privacy-close" data-close-privacy aria-label="Chiudi / Close"><svg><use href="#i-close"/></svg></button>
+      </header>
+      <div class="privacy-body">
+        <div data-l="it">
+          <p class="muted">Ultimo aggiornamento: ottobre 2026</p>
+          <h3>Titolare del trattamento</h3>
+          <p>Fulki Travel, Via 4 Martiri, 36071 Arzignano (VI), Italia · P. IVA IT03723010249 · <a href="mailto:info@fulkitravels.com">info@fulkitravels.com</a></p>
+          <h3>Dati raccolti da questo sito</h3>
+          <p>Questo sito è solo informativo: non ha moduli, account o newsletter e non raccoglie direttamente dati personali.</p>
+          <h3>Cookie</h3>
+          <p>Non usiamo cookie di profilazione, di statistica o pubblicitari. La lingua che scegli viene salvata solo nel tuo browser (memoria locale): è un’informazione tecnica che non ci viene inviata e che puoi cancellare in qualsiasi momento dalle impostazioni del browser.</p>
+          <h3>Hosting</h3>
+          <p>Il sito è ospitato su GitHub Pages (GitHub, Inc.), che può registrare dati tecnici come l’indirizzo IP per garantire la sicurezza e il funzionamento del servizio. Caratteri e immagini sono serviti dal sito stesso, senza servizi di terze parti.</p>
+          <h3>Quando ci contatti</h3>
+          <p>Se ci scrivi via email o WhatsApp, o ci chiami, usiamo i dati che ci fornisci solo per risponderti e, se lo richiedi, per preparare e gestire la tua prenotazione (art. 6.1.b GDPR), e per gli obblighi di legge, ad esempio fiscali (art. 6.1.c). WhatsApp e Google Maps sono servizi esterni con le proprie informative.</p>
+          <h3>Conservazione</h3>
+          <p>Conserviamo i dati per il tempo necessario a rispondere alla richiesta o a gestire il servizio, e poi per il periodo previsto dalla legge.</p>
+          <h3>I tuoi diritti</h3>
+          <p>Puoi chiedere l’accesso, la rettifica, la cancellazione, la limitazione o la portabilità dei tuoi dati, e opporti al trattamento (artt. 15–22 GDPR), scrivendo a <a href="mailto:info@fulkitravels.com">info@fulkitravels.com</a>. Puoi anche presentare reclamo al Garante per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a>).</p>
+        </div>
+        <div data-l="en">
+          <p class="muted">Last updated: October 2026</p>
+          <h3>Data controller</h3>
+          <p>Fulki Travel, Via 4 Martiri, 36071 Arzignano (VI), Italy · VAT IT03723010249 · <a href="mailto:info@fulkitravels.com">info@fulkitravels.com</a></p>
+          <h3>Data collected by this site</h3>
+          <p>This site is for information only: it has no forms, accounts or newsletters, and it does not collect personal data directly.</p>
+          <h3>Cookies</h3>
+          <p>We don’t use profiling, analytics or advertising cookies. The language you choose is saved only in your browser (local storage). It is technical information that is never sent to us, and you can clear it at any time in your browser settings.</p>
+          <h3>Hosting</h3>
+          <p>The site is hosted on GitHub Pages (GitHub, Inc.), which may log technical data such as IP addresses to keep the service secure and running. Fonts and images are served by the site itself, with no third-party services.</p>
+          <h3>When you contact us</h3>
+          <p>If you email us, message us on WhatsApp or call us, we use the details you give us only to reply and, if you ask us to, to prepare and manage your booking (Art. 6(1)(b) GDPR), and to meet legal obligations such as tax rules (Art. 6(1)(c)). WhatsApp and Google Maps are external services with their own privacy policies.</p>
+          <h3>Retention</h3>
+          <p>We keep data for as long as needed to answer your request or provide the service, and then for the period required by law.</p>
+          <h3>Your rights</h3>
+          <p>You can ask to access, correct, delete, restrict or port your data, and object to its processing (Arts. 15–22 GDPR), by writing to <a href="mailto:info@fulkitravels.com">info@fulkitravels.com</a>. You can also complain to the Italian data protection authority, the Garante per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a>).</p>
+        </div>
+      </div>
+    </div>
+  </dialog>
 
   <script src="/fulki-travel-marketing/main.js" defer></script>
 </body>
