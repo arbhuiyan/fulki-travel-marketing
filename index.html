@@ -274,14 +274,70 @@
         <div class="contact-grid">
           <a class="place reveal" href="https://www.google.com/maps/search/?api=1&amp;query=Fulki+Travel+Via+4+Martiri+36071+Arzignano+VI" target="_blank" rel="noopener">
             <div class="place-map" aria-hidden="true">
-              <svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice">
-                <path class="road road-main" d="M-10 150 C 90 140, 160 90, 250 100 S 380 60, 420 70"/>
-                <path class="road" d="M120 -10 C 130 60, 150 140, 140 240"/>
-                <path class="road" d="M260 -10 C 250 80, 300 160, 290 240"/>
-                <path class="road road-thin" d="M-10 60 C 80 70, 200 40, 420 30"/>
-                <path class="road road-thin" d="M-10 200 C 120 190, 260 210, 420 180"/>
+              <!-- Stylized street plan around Via IV Martiri, Arzignano (traced by hand, not to scale). -->
+              <svg class="streetmap" viewBox="0 640 900 620" preserveAspectRatio="xMidYMid slice">
+                <defs>
+                  <path id="lbl-martiri" d="M560 1003 L 900 945"/>
+                  <path id="lbl-martiri-w" d="M20 1095 L 290 1068"/>
+                  <path id="lbl-calavena" d="M300 783 L 640 826"/>
+                  <path id="lbl-calavena-n" d="M200 735 L 240 400"/>
+                </defs>
+                <rect x="-100" y="500" width="1100" height="900" class="land"/>
+                <g class="blocks">
+                  <path d="M0 790 L110 795 L118 1025 L0 1030 Z" class="warm"/>
+                  <path d="M235 640 L365 645 L360 755 L232 750 Z"/>
+                  <path d="M410 670 L485 672 L485 755 L408 752 Z"/>
+                  <path d="M520 655 L640 650 L645 720 L522 725 Z"/>
+                  <path d="M595 690 L695 670 L710 765 L612 780 Z"/>
+                  <path d="M780 700 L860 650 L895 690 L835 815 L790 790 Z"/>
+                  <path d="M290 815 L395 822 L398 895 L292 890 Z"/>
+                  <path d="M398 820 L455 825 L455 880 L398 878 Z"/>
+                  <path d="M328 893 L415 888 L432 1012 L348 1020 Z"/>
+                  <path d="M415 888 L455 884 L470 1003 L432 1008 Z"/>
+                  <path d="M455 884 L498 880 L515 997 L470 1003 Z"/>
+                  <path d="M562 872 L604 870 L620 970 L578 978 Z" class="warm"/>
+                  <path d="M610 880 L660 855 L680 958 L622 966 Z"/>
+                  <path d="M680 878 L735 872 L748 945 L692 952 Z"/>
+                  <path d="M770 880 L900 840 L900 935 L790 950 Z"/>
+                  <path d="M430 1085 L745 1040 L768 1128 L440 1190 Z" class="warm"/>
+                  <path d="M438 1192 L522 1180 L530 1240 L442 1250 Z"/>
+                  <path d="M655 1200 L700 1198 L700 1260 L655 1262 Z"/>
+                  <path d="M760 1060 L815 1035 L870 1150 L800 1190 Z"/>
+                  <path d="M800 1190 L870 1150 L900 1210 L850 1240 Z"/>
+                  <path d="M180 1120 L300 1110 L305 1260 L185 1260 Z" class="soft"/>
+                </g>
+                <g class="roads casing">
+                  <path d="M-40 1100 L300 1068 L600 1012 L940 945"/>
+                  <path d="M-40 712 L130 718 Q175 722 195 760 L450 795 L760 838"/>
+                  <path d="M150 745 L155 900 L165 1075"/>
+                  <path d="M190 755 L240 300 L250 100"/>
+                  <path d="M940 470 L800 760 Q770 830 790 880 L840 990 L890 1110 L930 1220"/>
+                  <path d="M318 1075 L330 1300"/>
+                  <path d="M740 1300 L940 1250"/>
+                </g>
+                <g class="roads">
+                  <path d="M-40 1100 L300 1068 L600 1012 L940 945" class="main"/>
+                  <path d="M-40 712 L130 718 Q175 722 195 760 L450 795 L760 838"/>
+                  <path d="M150 745 L155 900 L165 1075"/>
+                  <path d="M190 755 L240 300 L250 100"/>
+                  <path d="M940 470 L800 760 Q770 830 790 880 L840 990 L890 1110 L930 1220"/>
+                  <path d="M318 1075 L330 1300"/>
+                  <path d="M740 1300 L940 1250"/>
+                </g>
+                <g class="street-labels">
+                  <text><textPath href="#lbl-martiri">Via IV Martiri</textPath></text>
+                  <text><textPath href="#lbl-martiri-w">Via IV Martiri</textPath></text>
+                  <text><textPath href="#lbl-calavena">Via Calavena Bassa</textPath></text>
+                </g>
+                <g class="agency">
+                  <path d="M498 880 L548 872 L565 980 L515 990 Z" class="agency-building"/>
+                  <circle cx="532" cy="955" r="14" class="agency-ring"/>
+                  <g class="agency-pin">
+                    <path d="M532 955 C 532 955 504 924 504 902 A 28 28 0 0 1 560 902 C 560 924 532 955 532 955 Z"/>
+                    <circle cx="532" cy="901" r="10" fill="#fff"/>
+                  </g>
+                </g>
               </svg>
-              <span class="pin"><svg><use href="#i-pin"/></svg></span>
             </div>
             <div class="place-body">
               <h3>Fulki Travel</h3>
