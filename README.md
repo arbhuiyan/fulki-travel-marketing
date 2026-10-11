@@ -20,7 +20,7 @@ python3 -m http.server 8080
 
 ## Deploy
 
-`.github/workflows/pages.yml` runs on every push to the `ccr-3e37aced-4oujyd` branch. It can also be started by hand from the Actions tab.
+`.github/workflows/pages.yml` runs on every push to `main`. It can also be started by hand from the Actions tab.
 It copies the site files into `_site` and publishes them to GitHub Pages at
 https://arbhuiyan.github.io/fulki-travel-marketing/.
 
