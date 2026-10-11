@@ -9,15 +9,23 @@ B2B partner information, location and contacts. It's plain HTML/CSS/JS with no b
 
 ## Run locally
 
-Open `index.html` directly, or serve the folder:
+All asset paths use the base URL `/fulki-travel-marketing/`, matching the GitHub Pages address.
+To preview, serve the folder that *contains* this repo, then open the page under that path:
 
 ```sh
+cd ..   # the parent folder of fulki-travel-marketing
 python3 -m http.server 8080
+# open http://localhost:8080/fulki-travel-marketing/
 ```
 
 ## Deploy
 
-Upload the folder as-is to any static host (GitHub Pages, Netlify, Cloudflare Pages, etc.).
+`.github/workflows/pages.yml` runs on every push to the `ccr-3e37aced-4oujyd` branch. It can also be started by hand from the Actions tab.
+It copies the site files into `_site` and publishes them to GitHub Pages at
+https://arbhuiyan.github.io/fulki-travel-marketing/.
+
+If you move the site to a different path or domain, update the `/fulki-travel-marketing/` paths in
+`index.html`. That covers the favicon, `styles.css`, `main.js`, the canonical link and `og:url`.
 
 ## Editing
 
