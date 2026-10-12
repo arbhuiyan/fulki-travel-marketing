@@ -18,21 +18,18 @@ Text is outlined from Outfit, the site's display font, so the files need no font
 | `fulki-icon-round.svg` | Icon only, circular crop (WhatsApp, Instagram, Facebook) |
 | `fulki-icon-plane.svg` | Alternative icon: plane climbing out of its contrail |
 
-### F icons
+### Departure-board F (`f-board/`)
 
-The F is the contrail of a plane that climbed the stem and is still flying at the end of the top arm.
+Icon only: the F on a split-flap card, as on an airport departures board, with the split running just under
+the middle arm.
 
-**`f-sky/`: sky tiles** (square app icon and round social avatar). Near the plane the trail is two crisp
-engine contrails that spread into one soft trail lower down.
-Skies: `day`, `day-clouds`, `day-orange-plane`, `sunset` (brand orange), `dusk`.
+- `fulki-f-flap-*`: the single flap card. Themes: `black`, `black-orange`, `black-amber`, `orange`, `light`;
+  plus `black-orange-round` for circular avatars.
+- `fulki-f-board-*`: the same card set into a departures board (DEPARTS / times / ON TIME). Best at 128 px and up;
+  use the flap version for small sizes.
+- `fulki-f-led-*`: dot-matrix F, as on LED departure displays (`amber`, `orange`).
 
-![F sky icons](f-sky/overview.png)
-
-**`f-flight/`: flat monoline F, transparent background.** Styles: `solid`, `gap` (trail breaking up),
-`dots` (trail starting as dots), `twin` (two engine contrails). Each comes in `black`,
-`black-orange` (orange plane) and `white`.
-
-![F flight icons](f-flight/overview.png)
+![Departure-board F icons](f-board/overview.png)
 
 Colours: orange `#EA580C`, ink `#171717`, night `#0C0A09`.
 Keep clear space around the logo at least the height of the plane, and don't use the

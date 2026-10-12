@@ -139,147 +139,126 @@ def monogram_glyph(x, y, s, ink, accent):
     return top + stem + arm + plane(px, cy, ps, accent)
 
 
-def f_flight(style, ink, accent, size=512):
-    """Icon only: a monoline F drawn by a plane. It climbed the stem from the bottom, banked right
-    along the top arm, and is still flying at its tip: the top arm is the plane's fuselage."""
-    w = size * 0.078  # stroke weight
-    k = 0.74  # plane size relative to the stroke
-    x0 = (size - 7.6 * w) / 2 + w / 2
-    yt = (size - 8.2 * w) / 2 + 0.5 * w
-    yb = yt + 8.2 * w
-    xn = x0 + 7.6 * w  # nose
-    ym = yt + 3.9 * w
-    r = 1.5 * w
-    line = 'fill="none" stroke-width="{sw:.2f}" stroke-linecap="round" stroke-linejoin="round"'
-
-    def stroke(d, colour, sw=w):
-        return f'<path d="{d}" stroke="{colour}" {line.format(sw=sw)}/>'
-
-    def poly(pts, colour):
-        d = "M" + "L".join(f"{x:.2f} {y:.2f}" for x, y in pts) + "Z"
-        return f'<path d="{d}" fill="{colour}" stroke="{colour}" stroke-width="{w * 0.3:.2f}" stroke-linejoin="round"/>'
-
-    def wings(cy, colour, scale=k):
-        out = ""
-        for sgn in (-1, 1):
-            u = scale * w
-            out += poly([(xn - 1.2 * u, cy), (xn - 2.7 * u, cy + sgn * 2.2 * u),
-                         (xn - 3.4 * u, cy + sgn * 2.2 * u), (xn - 2.9 * u, cy)], colour)
-            out += poly([(xn - 4.4 * u, cy), (xn - 5.0 * u, cy + sgn * 0.95 * u),
-                         (xn - 5.5 * u, cy + sgn * 0.95 * u), (xn - 5.3 * u, cy)], colour)
-        return out
-
-    corner = f"M{x0:.2f} {yt + r:.2f}Q{x0:.2f} {yt:.2f} {x0 + r:.2f} {yt:.2f}"
-    tail_x = xn - 5.2 * k * w
-    gap = 0.55 * w
-    if style == "twin":  # two engine contrails form the F and converge into the plane
-        t, o = w * 0.4, w * 0.38
-        body = ""
-        for k2 in (-1, 1):
-            xo, yo = x0 + k2 * o, yt + k2 * o
-            body += stroke(f"M{xo:.2f} {yb:.2f}V{yt + r:.2f}Q{xo:.2f} {yo:.2f} {x0 + r:.2f} {yo:.2f}H{tail_x + 0.3 * w:.2f}", ink, t)
-            body += stroke(f"M{x0 + o + gap:.2f} {ym + k2 * o:.2f}H{x0 + 4.0 * w:.2f}", ink, t)
-        fus = stroke(f"M{tail_x:.2f} {yt:.2f}H{xn:.2f}", accent, w * 0.9)
-        return body + wings(yt, accent) + fus
-    if style == "dots":  # the trail starts as dots at the bottom
-        cut = yt + 5.4 * w
-        body = stroke(f"M{x0:.2f} {cut:.2f}V{yt + r:.2f}", ink)
-        for dy, rad in [(1.25, 0.5), (2.2, 0.36), (2.95, 0.24)]:
-            body += f'<circle cx="{x0:.2f}" cy="{cut + dy * w:.2f}" r="{rad * w:.2f}" fill="{ink}"/>'
-    elif style == "gap":  # cut into segments, like a trail breaking up behind the plane
-        body = stroke(f"M{x0:.2f} {yb:.2f}V{yb - 0.6 * w:.2f}", ink)
-        body += stroke(f"M{x0:.2f} {yb - 0.6 * w - gap * 2.6:.2f}V{yt + r:.2f}", ink)
-    else:
-        body = stroke(f"M{x0:.2f} {yb:.2f}V{yt + r:.2f}", ink)
-    body += stroke(f"{corner}H{tail_x:.2f}", ink)
-    mid_x0 = x0 + (w + gap if style in ("gap", "dots") else 0)
-    body += stroke(f"M{mid_x0:.2f} {ym:.2f}H{x0 + 4.0 * w:.2f}", ink)
-    return body + stroke(f"M{tail_x:.2f} {yt:.2f}H{xn:.2f}", accent) + wings(yt, accent)
+def flap_f(x, y, fw, fh, card_top, card_bot, glyph, glyph_bot, uid, hinge="#000"):
+    """A split-flap card at (x, y) showing F, with the split line running through the middle."""
+    rx = fw * 0.09
+    split = fh * 0.012
+    mid = y + fh / 2
+    clip = f"fc{uid}"
+    defs = (f'<clipPath id="{clip}t"><rect x="{x:.2f}" y="{y:.2f}" width="{fw:.2f}" height="{fh / 2 - split:.2f}"/></clipPath>'
+            f'<clipPath id="{clip}b"><rect x="{x:.2f}" y="{mid + split:.2f}" width="{fw:.2f}" height="{fh / 2 - split:.2f}"/></clipPath>'
+            f'<linearGradient id="{clip}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0.35"/>'
+            f'<stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>')
+    # F: bold, slightly condensed, square ends, like a departure-board face
+    gw, gh = fw * 0.5, fh * 0.64
+    gx, gy = x + (fw - gw) / 2 + fw * 0.02, y + (fh - gh) / 2
+    t = gw * 0.34
+    f_shape = (f'<rect x="{gx:.2f}" y="{gy:.2f}" width="{t:.2f}" height="{gh:.2f}"/>'
+               f'<rect x="{gx:.2f}" y="{gy:.2f}" width="{gw:.2f}" height="{t * 0.88:.2f}"/>'
+               f'<rect x="{gx:.2f}" y="{gy + gh * 0.37:.2f}" width="{gw * 0.82:.2f}" height="{t * 0.8:.2f}"/>')
+    card = f'<rect x="{x:.2f}" y="{y:.2f}" width="{fw:.2f}" height="{fh:.2f}" rx="{rx:.2f}"'
+    body = (f'<g clip-path="url(#{clip}t)">{card} fill="{card_top}"/><g fill="{glyph}">{f_shape}</g></g>'
+            f'<g clip-path="url(#{clip}b)">{card} fill="{card_bot}"/><g fill="{glyph_bot}">{f_shape}</g>'
+            f'<rect x="{x:.2f}" y="{mid + split:.2f}" width="{fw:.2f}" height="{fh * 0.07:.2f}" fill="url(#{clip}s)"/></g>'
+            f'<rect x="{x:.2f}" y="{mid - split:.2f}" width="{fw:.2f}" height="{split * 2:.2f}" fill="{hinge}"/>')
+    # hinge pins either side of the split
+    pw, ph = fw * 0.035, fh * 0.07
+    for px in (x - pw * 0.4, x + fw - pw * 0.6):
+        body += f'<rect x="{px:.2f}" y="{mid - ph / 2:.2f}" width="{pw:.2f}" height="{ph:.2f}" rx="{pw * 0.3:.2f}" fill="{card_top}" opacity="0.9"/>'
+    return defs, body
 
 
-SKIES = {
-    "day": [("0", "#3B97DD"), ("0.6", "#7EC4F0"), ("1", "#B9E2F8")],
-    "sunset": [("0", "#EA580C"), ("0.55", "#F98A3C"), ("1", "#FDBA74")],
-    "dusk": [("0", "#1E3A8A"), ("0.55", "#6D5BBA"), ("1", "#F6A57A")],
-}
+# 9 x 7 board; the F card covers the middle of rows 1-5, so those rows show a departure time split around it.
+BOARD_ROWS = [" DEPARTS ", "09     45", "10     30", "12     05", "14     20", "16     40", " ON TIME "]
 
 
-def plane_modern(xn, cy, u, colour):
-    """Flat modern plane, nose at (xn, cy) pointing right; u is the size unit."""
-    def poly(pts):
-        d = "M" + "L".join(f"{x:.2f} {y:.2f}" for x, y in pts) + "Z"
-        return f'<path d="{d}" fill="{colour}" stroke="{colour}" stroke-width="{u * 0.4:.2f}" stroke-linejoin="round"/>'
-    out = (f'<path d="M{xn - 5.2 * u:.2f} {cy:.2f}H{xn - 0.7 * u:.2f}" stroke="{colour}" '
-           f'stroke-width="{1.35 * u:.2f}" stroke-linecap="round"/>')
-    for sgn in (-1, 1):
-        out += poly([(xn - 1.2 * u, cy), (xn - 2.7 * u, cy + sgn * 2.2 * u), (xn - 3.4 * u, cy + sgn * 2.2 * u), (xn - 2.9 * u, cy)])
-        out += poly([(xn - 4.4 * u, cy), (xn - 5.0 * u, cy + sgn * 0.95 * u), (xn - 5.5 * u, cy + sgn * 0.95 * u), (xn - 5.3 * u, cy)])
+def board_cells(size, cols, rows, cell_fill, char_fill, skip, split_opacity=0.55, pad=0.06):
+    """Background of small split-flap cells spelling out departures. `skip(c, r)` leaves a cell empty."""
+    pad = size * pad
+    cw = (size - 2 * pad) / cols
+    ch = cw * 1.32
+    top = (size - rows * ch) / 2
+    out = ""
+    for r in range(rows):
+        row = BOARD_ROWS[r % len(BOARD_ROWS)]
+        for c in range(cols):
+            if skip(c, r) or (c in (0, cols - 1) and r in (0, rows - 1)):  # keep the tile's rounded corners clear
+                continue
+            cx, cy = pad + c * cw + cw * 0.06, top + r * ch + ch * 0.06
+            w, h = cw * 0.88, ch * 0.88
+            out += f'<rect x="{cx:.2f}" y="{cy:.2f}" width="{w:.2f}" height="{h:.2f}" rx="{w * 0.12:.2f}" fill="{cell_fill}"/>'
+            chr_ = row[c] if c < len(row) else " "
+            if chr_.strip():
+                d, gw, cap = text_path(chr_, 600, h * 0.62)
+                out += (f'<path fill="{char_fill}" transform="translate({cx + (w - gw) / 2:.2f} {cy + (h + cap) / 2:.2f})" d="{d}"/>')
+            out += f'<rect x="{cx:.2f}" y="{cy + h / 2 - h * 0.025:.2f}" width="{w:.2f}" height="{h * 0.05:.2f}" fill="#000" opacity="{split_opacity}"/>'
     return out
 
 
-def f_sky(sky, plane_colour=WHITE, shape="square", clouds=False, size=512, uid="s"):
-    """Icon tile: a plane in a light sky whose contrail traces the F.
+FLAP_THEMES = {
+    # name: tile, card top, card bottom, glyph, glyph bottom
+    "black": ("#0C0A09", "#2A2725", "#232120", "#F5F5F4", "#E7E5E4"),
+    "black-orange": ("#0C0A09", "#2A2725", "#232120", "#F97316", "#EA580C"),
+    "black-amber": ("#0C0A09", "#2A2725", "#232120", "#FBBF24", "#F59E0B"),
+    "orange": ("#EA580C", "#1C1917", "#171412", "#FFFFFF", "#F5F5F4"),
+    "light": ("#F5F5F4", "#FFFFFF", "#F3F2F1", "#171717", "#262626"),
+}
 
-    Near the plane the contrail is two crisp engine trails; further back they spread into one soft trail."""
-    w = size * 0.068
-    u = w * 0.78
-    x0 = (size - 7.6 * w) / 2 + w * 0.45
-    yt = (size - 8.2 * w) / 2 + 0.7 * w
-    yb = yt + 8.2 * w + w  # runs off the bottom edge
-    xn = x0 + 7.6 * w
-    ym = yt + 3.9 * w
-    r = 1.6 * w
-    tail = xn - 5.2 * u
-    main = f"M{x0:.2f} {yb:.2f}V{yt + r:.2f}Q{x0:.2f} {yt:.2f} {x0 + r:.2f} {yt:.2f}H{tail:.2f}"
-    mid = f"M{x0:.2f} {ym:.2f}H{x0 + 4.0 * w:.2f}"
+
+def flap_icon(theme, board=False, shape="square", size=512, uid="f"):
+    tile, top, bot, g, gb = FLAP_THEMES[theme]
     rx = size * 0.22 if shape == "square" else size / 2
-    stops = "".join(f'<stop offset="{o}" stop-color="{c}"/>' for o, c in SKIES[sky])
-    defs = (f'<linearGradient id="sky{uid}" x1="0" y1="0" x2="0.35" y2="1">{stops}</linearGradient>'
-            f'<clipPath id="clip{uid}"><rect width="{size}" height="{size}" rx="{rx:.2f}"/></clipPath>'
-            f'<filter id="soft{uid}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="{w * 0.22:.2f}"/></filter>'
-            f'<filter id="haze{uid}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="{w * 0.9:.2f}"/></filter>'
-            f'<filter id="shadow{uid}" x="-30%" y="-30%" width="160%" height="160%">'
-            f'<feDropShadow dx="0" dy="{w * 0.12:.2f}" stdDeviation="{w * 0.12:.2f}" flood-color="#0C4A6E" flood-opacity="0.25"/></filter>'
-            # crisp trails fade out going back in time (downwards / left); the soft trail fades in
-            f'<linearGradient id="young{uid}" gradientUnits="userSpaceOnUse" x1="{xn:.2f}" y1="{yt:.2f}" x2="{x0:.2f}" y2="{yt + 5.5 * w:.2f}">'
-            f'<stop offset="0" stop-color="#fff"/><stop offset="0.55" stop-color="#fff" stop-opacity="0.8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
-            f'<linearGradient id="old{uid}" gradientUnits="userSpaceOnUse" x1="{xn:.2f}" y1="{yt:.2f}" x2="{x0:.2f}" y2="{yt + 6 * w:.2f}">'
-            f'<stop offset="0.05" stop-color="#fff" stop-opacity="0.15"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.95"/><stop offset="1" stop-color="#fff"/></linearGradient>'
-            f'<mask id="my{uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="{size}" height="{size}"><rect width="{size}" height="{size}" fill="url(#young{uid})"/></mask>'
-            f'<mask id="mo{uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="{size}" height="{size}"><rect width="{size}" height="{size}" fill="url(#old{uid})"/></mask>')
-    body = f'<rect width="{size}" height="{size}" fill="url(#sky{uid})"/>'
-    if clouds:  # soft cumulus: overlapping puffs, lightly blurred
-        banks = [(0.16, 0.97, 1.0), (0.5, 1.0, 1.25), (0.86, 0.96, 1.0), (0.84, 0.6, 0.42)]
-        puffs = ""
-        for cx, cy, sc in banks:
-            for dx, dy, rr in [(-0.09, 0.02, 0.06), (-0.03, -0.03, 0.08), (0.05, -0.01, 0.07), (0.11, 0.03, 0.05), (0.0, 0.04, 0.09)]:
-                puffs += f'<circle cx="{(cx + dx * sc) * size:.1f}" cy="{(cy + dy * sc) * size:.1f}" r="{rr * sc * size:.1f}"/>'
-        body += f'<g fill="#fff" opacity="0.85" filter="url(#cloud{uid})">{puffs}</g>'
-        defs += f'<filter id="cloud{uid}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="{size * 0.006:.2f}"/></filter>'
-    soft = (f'<g mask="url(#mo{uid})" filter="url(#soft{uid})" fill="none" stroke="#fff" stroke-linecap="round">'
-            f'<path d="{main}" stroke-width="{w * 1.15:.2f}"/><path d="{mid}" stroke-width="{w * 1.05:.2f}"/></g>')
-    o, t = w * 0.24, w * 0.26
-    twin = ""
-    for k in (-1, 1):
-        xo, yo = x0 + k * o, yt + k * o
-        twin += (f'<path d="M{xo:.2f} {yb:.2f}V{yt + r:.2f}Q{xo:.2f} {yo:.2f} {x0 + r:.2f} {yo:.2f}H{tail + u:.2f}" stroke-width="{t:.2f}"/>'
-                 f'<path d="M{x0:.2f} {ym + k * o:.2f}H{x0 + 4.0 * w:.2f}" stroke-width="{t:.2f}"/>')
-    crisp = f'<g mask="url(#my{uid})" fill="none" stroke="#fff" stroke-linecap="round">{twin}</g>'
-    pl = f'<g filter="url(#shadow{uid})">{plane_modern(xn, yt, u, plane_colour)}</g>'
-    return svg(size, size, f'<g clip-path="url(#clip{uid})">{body}{soft}{crisp}{pl}</g>', TITLE).replace(
+    hinge = "#000" if theme != "light" else "#D6D3D1"
+    defs = f'<clipPath id="tile{uid}"><rect width="{size}" height="{size}" rx="{rx:.2f}"/></clipPath>'
+    body = f'<rect width="{size}" height="{size}" fill="{tile}"/>'
+    if board:
+        fw, fh = size * 0.44, size * 0.56
+    else:
+        fw, fh = size * 0.56, size * 0.7
+    x, y = (size - fw) / 2, (size - fh) / 2
+    if board:
+        light = theme == "light"
+        cell = "#E7E5E4" if light else ("#292524" if theme != "orange" else "#C2410C")
+        char = "#A8A29E" if light else ("#57534E" if theme != "orange" else "#FDBA74")
+        cols, rows = 9, 7
+        pad = size * 0.075
+        cw = (size - 2 * pad) / cols
+        ch = cw * 1.32
+        tp = (size - rows * ch) / 2
+
+        def skip(c, r):
+            cx0, cy0 = pad + c * cw, tp + r * ch
+            return cx0 + cw > x - cw * 0.15 and cx0 < x + fw + cw * 0.15 and cy0 + ch > y - ch * 0.1 and cy0 < y + fh + ch * 0.1
+        body += board_cells(size, cols, rows, cell, char, skip, 0.12 if light else 0.55, 0.075)
+    d, b = flap_f(x, y, fw, fh, top, bot, g, gb, uid, hinge)
+    shadow = (f'<filter id="sh{uid}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="{size * 0.012:.2f}" '
+              f'stdDeviation="{size * 0.018:.2f}" flood-color="#000" flood-opacity="{0.15 if theme == "light" else 0.5}"/></filter>')
+    body += f'<g filter="url(#sh{uid})">{b}</g>'
+    return svg(size, size, f'<g clip-path="url(#tile{uid})">{body}</g>', TITLE).replace(
+        "<title>", f"<defs>{defs}{d}{shadow}</defs><title>", 1)
+
+
+# 5 x 7 dot-matrix F, as on LED departure displays
+DOT_F = ["11111", "10000", "10000", "11110", "10000", "10000", "10000"]
+
+
+def led_icon(on, off, tile, shape="square", size=512, uid="l"):
+    rx = size * 0.22 if shape == "square" else size / 2
+    cols, rows = 7, 9  # F sits in the middle with one blank ring of dots around it
+    pitch = size * 0.098
+    r = pitch * 0.38
+    ox = (size - (cols - 1) * pitch) / 2
+    oy = (size - (rows - 1) * pitch) / 2
+    dots = ""
+    for rr in range(rows):
+        for cc in range(cols):
+            lit = 1 <= rr <= 7 and 1 <= cc <= 5 and DOT_F[rr - 1][cc - 1] == "1"
+            dots += f'<circle cx="{ox + cc * pitch:.2f}" cy="{oy + rr * pitch:.2f}" r="{r:.2f}" fill="{on if lit else off}"' + (
+                f' filter="url(#glow{uid})"/>' if lit else "/>")
+    defs = (f'<filter id="glow{uid}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="{r * 0.35:.2f}" result="b"/>'
+            f'<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>')
+    return svg(size, size, f'<rect width="{size}" height="{size}" rx="{rx:.2f}" fill="{tile}"/>{dots}', TITLE).replace(
         "<title>", f"<defs>{defs}</defs><title>", 1)
-
-
-def f_flight_icon(style, ink, accent):
-    return svg(512, 512, f_flight(style, ink, accent), TITLE)
-
-
-def f_icon(style, ink, accent, size=512):
-    out = f_mark(style, ink, accent, size)
-    defs, body = out if isinstance(out, tuple) else ("", out)
-    if defs:
-        return svg(size, size, body, TITLE).replace('<title>', f'<defs>{defs}</defs><title>', 1)
-    return svg(size, size, body, TITLE)
 
 
 def icon(bg, ink, accent, size=512, shape="square"):
@@ -325,6 +304,7 @@ def horizontal(ink, accent, tagline_ink, bg=None):
     return svg(W, H, body, TITLE, bg=bg)
 
 
+
 VARIANTS = {
     # Full lockups
     "fulki-travel-tours-primary.svg": lambda: stacked(INK, ORANGE, INK),
@@ -341,25 +321,13 @@ VARIANTS = {
     "fulki-icon-plane.svg": lambda: plane_badge(ORANGE, WHITE),
 }
 
-F_COLOURS = {"black": (INK, INK), "black-orange": (INK, ORANGE), "white": (WHITE, WHITE)}
-# Icon only, transparent background: a modern monoline F drawn by the plane that flew it.
-for _st in ["solid", "gap", "dots", "twin"]:
-    for _cn, (_ink, _acc) in F_COLOURS.items():
-        VARIANTS[f"f-flight/fulki-f-flight-{_st}-{_cn}.svg"] = (
-            lambda st=_st, i=_ink, a=_acc: f_flight_icon(st, i, a))
-
-# Icon tiles: a plane in a light sky whose contrail traces the F.
-SKY_ICONS = {
-    "day": dict(sky="day"),
-    "day-orange-plane": dict(sky="day", plane_colour=ORANGE),
-    "day-clouds": dict(sky="day", clouds=True),
-    "sunset": dict(sky="sunset"),
-    "dusk": dict(sky="dusk"),
-}
-for _n, _kw in SKY_ICONS.items():
-    for _shape in ("square", "round"):
-        VARIANTS[f"f-sky/fulki-f-sky-{_n}-{_shape}.svg"] = (
-            lambda kw=_kw, sh=_shape, u=f"{_n}{_shape}".replace("-", ""): f_sky(shape=sh, uid=u, **kw))
+# Icon only: departure-board F.
+for _t in FLAP_THEMES:
+    VARIANTS[f"f-board/fulki-f-flap-{_t}.svg"] = (lambda t=_t: flap_icon(t, uid=f"a{t.replace('-', '')}"))
+    VARIANTS[f"f-board/fulki-f-board-{_t}.svg"] = (lambda t=_t: flap_icon(t, board=True, uid=f"b{t.replace('-', '')}"))
+VARIANTS["f-board/fulki-f-flap-black-orange-round.svg"] = lambda: flap_icon("black-orange", shape="round", uid="r1")
+VARIANTS["f-board/fulki-f-led-amber.svg"] = lambda: led_icon("#FBBF24", "#292524", "#0C0A09", uid="l1")
+VARIANTS["f-board/fulki-f-led-orange.svg"] = lambda: led_icon("#F97316", "#292524", "#0C0A09", uid="l2")
 
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
