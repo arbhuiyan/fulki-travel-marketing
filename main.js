@@ -151,7 +151,7 @@
     fr: { open: "Ouvert · ferme à {t}", later: "Fermé · ouvre à {t}", tomorrow: "Fermé · ouvre demain à {t}", day: "Fermé · ouvre {d} à {t}" },
     es: { open: "Abierto · cierra a las {t}", later: "Cerrado · abre a las {t}", tomorrow: "Cerrado · abre mañana a las {t}", day: "Cerrado · abre el {d} a las {t}" },
     de: { open: "Geöffnet · schließt um {t}", later: "Geschlossen · öffnet um {t}", tomorrow: "Geschlossen · öffnet morgen um {t}", day: "Geschlossen · öffnet {d} um {t}" },
-    bn: { open: "খোলা · {t}-এ বন্ধ হবে", later: "বন্ধ · {t}-এ খুলবে", tomorrow: "বন্ধ · আগামীকাল {t}-এ খুলবে", day: "বন্ধ · {d} {t}-এ খুলবে" }
+    bn: { open: "এখন খোলা · {t}-এ বন্ধ হবে", later: "এখন বন্ধ · {t}-এ খুলবে", tomorrow: "এখন বন্ধ · কাল {t}-এ খুলবে", day: "এখন বন্ধ · {d} {t}-এ খুলবে" }
   };
   function hhmm(min) { return Math.floor(min / 60) + ":" + ("0" + (min % 60)).slice(-2); }
   function romeNow() {
