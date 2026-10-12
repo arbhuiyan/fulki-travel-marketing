@@ -66,10 +66,10 @@
       leafTop.firstChild.innerHTML = glyph(current);
       leafBottom.firstChild.innerHTML = glyph(next);
       leafTop.style.visibility = "visible";
-      leafTop.animate([{ transform: "rotateX(0)" }, { transform: "rotateX(-90deg)" }], { duration: 200, easing: "ease-in" }).onfinish = function () {
+      leafTop.animate([{ transform: "rotateX(0)" }, { transform: "rotateX(-90deg)" }], { duration: 120, easing: "ease-in" }).onfinish = function () {
         leafTop.style.visibility = "hidden";
         leafBottom.style.visibility = "visible";
-        leafBottom.animate([{ transform: "rotateX(90deg)" }, { transform: "rotateX(0)" }], { duration: 240, easing: "ease-out" }).onfinish = function () {
+        leafBottom.animate([{ transform: "rotateX(90deg)" }, { transform: "rotateX(0)" }], { duration: 140, easing: "ease-out" }).onfinish = function () {
           bottom.innerHTML = glyph(next);
           leafBottom.style.visibility = "hidden";
           current = next;
@@ -79,9 +79,9 @@
     };
     var sequence = ["U", "L", "K", "I", "plane", "F"];
     var step = function (i) {
-      if (i < sequence.length) flip(sequence[i], function () { setTimeout(function () { step(i + 1); }, i === sequence.length - 2 ? 1100 : 650); });
+      if (i < sequence.length) flip(sequence[i], function () { setTimeout(function () { step(i + 1); }, i === sequence.length - 2 ? 750 : 500); });
     };
-    setTimeout(function () { step(0); }, 1000);
+    setTimeout(function () { step(0); }, 700);
   }
 
   // "Open now" label from the agency's hours, in Italian time whatever the visitor's zone.
