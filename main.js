@@ -51,6 +51,39 @@
     route.setCurrentTime(3.5);
   }
 
+  // Logo: the split-flap card flips F, U, L, K, I, then a plane, and settles back on F.
+  var flap = document.querySelector("[data-flap]");
+  if (flap && flap.animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    var PLANE = '<svg viewBox="-52 -45 104 90"><path fill="currentColor" d="M50 0C50-3.6 46.5-5.6 41-5.6H15L-4-40.5C-5-42.3-6.6-43-8.6-43H-13.4C-15-43-15.9-41.8-15.4-40.3L-6.4-5.6H-31L-39.6-17.4C-40.4-18.5-41.4-19-42.8-19H-46.4C-47.7-19-48.4-18-48-16.8L-44.2-4.2C-44.6-2.8-44.6 2.8-44.2 4.2L-48 16.8C-48.4 18-47.7 19-46.4 19H-42.8C-41.4 19-40.4 18.5-39.6 17.4L-31 5.6H-6.4L-15.4 40.3C-15.9 41.8-15 43-13.4 43H-8.6C-6.6 43-5 42.3-4 40.5L15 5.6H41C46.5 5.6 50 3.6 50 0Z"/></svg>';
+    var face = function (q) { return flap.querySelector(q + " .flap-face"); };
+    var top = face(".flap-top"), bottom = face(".flap-bottom");
+    var leafTop = flap.querySelector(".flap-leaf-top"), leafBottom = flap.querySelector(".flap-leaf-bottom");
+    var glyph = function (c) { return c === "plane" ? PLANE : c; };
+    var current = "F";
+    var flip = function (next, done) {
+      // The top half of the current character falls away, revealing the next one; its bottom half drops into place.
+      top.innerHTML = glyph(next);
+      leafTop.firstChild.innerHTML = glyph(current);
+      leafBottom.firstChild.innerHTML = glyph(next);
+      leafTop.style.visibility = "visible";
+      leafTop.animate([{ transform: "rotateX(0)" }, { transform: "rotateX(-90deg)" }], { duration: 120, easing: "ease-in" }).onfinish = function () {
+        leafTop.style.visibility = "hidden";
+        leafBottom.style.visibility = "visible";
+        leafBottom.animate([{ transform: "rotateX(90deg)" }, { transform: "rotateX(0)" }], { duration: 140, easing: "ease-out" }).onfinish = function () {
+          bottom.innerHTML = glyph(next);
+          leafBottom.style.visibility = "hidden";
+          current = next;
+          done();
+        };
+      };
+    };
+    var sequence = ["U", "L", "K", "I", "plane", "F"];
+    var step = function (i) {
+      if (i < sequence.length) flip(sequence[i], function () { setTimeout(function () { step(i + 1); }, i === sequence.length - 2 ? 520 : 280); });
+    };
+    setTimeout(function () { step(0); }, 700);
+  }
+
   // "Open now" label from the agency's hours, in Italian time whatever the visitor's zone.
   // Mon–Sat 9:00–13:00 and 15:00–19:00; closed on Sunday.
   var status = document.getElementById("open-status");

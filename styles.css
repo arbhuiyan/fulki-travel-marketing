@@ -65,11 +65,21 @@ svg:has(> use[href^="#i-"]) {
 .site-header.scrolled { border-bottom-color: var(--line); background: rgb(250 250 250 / 0.88); }
 .header-inner { display: flex; align-items: center; gap: 24px; height: 68px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+/* Brand mark: a departure-board split-flap card showing F (main.js flips it through F-U-L-K-I-plane-F once). */
 .brand-mark {
-  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px;
-  background: var(--orange); color: #fff; box-shadow: 0 6px 16px -6px rgb(234 88 12 / 0.6);
+  position: relative; flex: none; width: 36px; height: 36px; border-radius: 9px;
+  font: 800 25px/1 var(--display); color: #f97316; perspective: 140px;
+  box-shadow: 0 6px 14px -6px rgb(0 0 0 / 0.55);
 }
-.brand-mark svg { transform: rotate(-45deg); width: 18px; height: 18px; }
+.flap-half { position: absolute; left: 0; right: 0; height: 50%; overflow: hidden; }
+.flap-top { top: 0; border-radius: 9px 9px 0 0; background: #2a2725; transform-origin: 50% 100%; }
+.flap-bottom { bottom: 0; border-radius: 0 0 9px 9px; background: #232120; color: #ea580c; transform-origin: 50% 0; }
+.flap-bottom::after { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: linear-gradient(rgb(0 0 0 / 0.35), transparent); }
+.flap-leaf { visibility: hidden; backface-visibility: hidden; z-index: 2; }
+.flap-face { position: absolute; left: 0; right: 0; height: 200%; display: grid; place-items: center; padding-top: 2px; }
+.flap-bottom .flap-face { top: -100%; }
+.flap-face svg { width: 62%; height: auto; }
+.brand-mark::after { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 0.5px); height: 1px; background: #000; z-index: 3; }
 .brand-name { font-family: var(--display); font-weight: 700; font-size: 1.3rem; letter-spacing: -0.02em; }
 .brand-name span { color: var(--orange); }
 .nav { display: flex; gap: 4px; margin-left: auto; }
@@ -297,7 +307,7 @@ svg:has(> use[href^="#i-"]) {
 .footer-inner a:not(.brand) { text-decoration: none; }
 .footer-inner a:not(.brand):hover { color: var(--orange); }
 .privacy-link { text-decoration: underline !important; text-underline-offset: 3px; }
-.footer-inner .brand-mark { width: 30px; height: 30px; border-radius: 9px; }
+.footer-inner .brand-mark { width: 30px; height: 30px; font-size: 21px; }
 .footer-inner .brand-name { font-size: 1.1rem; color: var(--ink); }
 .footer-social { display: flex; gap: 8px; margin-left: auto; }
 .footer-social a {

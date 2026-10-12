@@ -351,6 +351,17 @@ VARIANTS["f-board/fulki-f-flap-black-orange-round.svg"] = lambda: flap_icon("bla
 VARIANTS["f-board/fulki-f-led-amber.svg"] = lambda: led_icon("#FBBF24", "#292524", "#0C0A09", uid="l1")
 VARIANTS["f-board/fulki-f-led-orange.svg"] = lambda: led_icon("#F97316", "#292524", "#0C0A09", uid="l2")
 
+
+def favicon(theme="black-orange", size=64):
+    """Site favicon: the flap card fills the icon and shows only the F, so it holds up at 16 px."""
+    _, top, bot, g, gb = FLAP_THEMES[theme]
+    d, b = flap_f(0, 0, size, size, top, bot, g, gb, "fav", sig=False)
+    return svg(size, size, f'<g clip-path="url(#favr)">{b}</g>', TITLE).replace(
+        "<title>", f'<defs><clipPath id="favr"><rect width="{size}" height="{size}" rx="{size * 0.2:.2f}"/></clipPath>{d}</defs><title>', 1)
+
+
+VARIANTS["../favicon.svg"] = favicon
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     for name, make in VARIANTS.items():
