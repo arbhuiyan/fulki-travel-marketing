@@ -270,7 +270,6 @@ svg:has(> use[href^="#i-"]) {
 .streetmap .centerline { fill: none; stroke: #ece3d7; stroke-width: 2; stroke-dasharray: 14 12; }
 .zebra rect { fill: #d9cfc2; }
 .zebra .zebra-bed { fill: #fff; }
-.traffic .vehicle { filter: drop-shadow(0 2px 1.5px rgb(0 0 0 / .18)); }
 .traffic .brake { fill: #ef4444; opacity: 0; transition: opacity .2s; }
 .traffic .braking .brake { opacity: 1; }
 .agency-building { fill: var(--orange-100); stroke: var(--orange); stroke-width: 2.5; }

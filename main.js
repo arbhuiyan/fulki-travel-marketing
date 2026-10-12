@@ -164,7 +164,7 @@
         el("circle", { cx: 0.5, cy: 0, r: 3, fill: "#3f2a1d" }, g);
       } else if (kind === "bus") {
         v.len = 66; v.max = rnd(60, 70);
-        el("rect", { x: -33, y: -10, width: 66, height: 20, rx: 4, fill: "#f97316" }, g);
+        el("rect", { x: -33, y: -10, width: 66, height: 20, rx: 4, fill: "#f97316", stroke: "rgb(0 0 0 / .18)", "stroke-width": 1 }, g);
         el("rect", { x: -28, y: -6, width: 54, height: 12, rx: 2, fill: "#fdba74" }, g);
         el("rect", { x: 26, y: -8.5, width: 5, height: 17, rx: 1.5, fill: "#7c2d12", opacity: .75 }, g);
         el("rect", { x: -33, y: -8, width: 2, height: 4, "class": "brake" }, g);
@@ -172,7 +172,7 @@
       } else {
         var c = pick(CARS);
         v.len = 36; v.max = rnd(80, 100);
-        el("rect", { x: -18, y: -8, width: 36, height: 16, rx: 5, fill: c, stroke: c === "#f8fafc" ? "#cbd5e1" : "none" }, g);
+        el("rect", { x: -18, y: -8, width: 36, height: 16, rx: 5, fill: c, stroke: "rgb(0 0 0 / .18)", "stroke-width": 1 }, g);
         el("rect", { x: 3, y: -6.5, width: 7, height: 13, rx: 2, fill: "#1e293b", opacity: .7 }, g);
         el("rect", { x: -12, y: -6, width: 5, height: 12, rx: 2, fill: "#1e293b", opacity: .55 }, g);
         el("rect", { x: -18, y: -7, width: 2, height: 3.5, "class": "brake" }, g);
@@ -228,13 +228,16 @@
       lanes.forEach(function (L) {
         L.timer -= dt;
         var last = L.list[L.list.length - 1];
-        if (L.timer <= 0 && (!last || last.s - last.len / 2 > 60)) {
+        // Keep the street calm and cheap to draw: at most three cars or buses and one bike at a time.
+        var onRoad = 0;
+        lanes.forEach(function (M) { if (M.bikes === L.bikes) onRoad += M.list.length; });
+        if (L.timer <= 0 && onRoad < (L.bikes ? 1 : 3) && (!last || last.s - last.len / 2 > 60)) {
           var v = makeVehicle(L.bikes ? "bike" : Math.random() < 0.12 ? "bus" : "car");
           v.s = -v.len / 2;
           if (last) v.v = Math.min(v.v, last.v);
           v.halt = phase !== "go";
           L.list.push(v);
-          L.timer = L.bikes ? rnd(4, 10) : rnd(1.2, 3.8);
+          L.timer = L.bikes ? rnd(6, 14) : rnd(2.5, 6);
         }
         for (var i = 0; i < L.list.length; i++) {
           var c = L.list[i], front = c.s + c.len / 2, room = Infinity;
@@ -270,6 +273,8 @@
     var paint = function () {
       lanes.forEach(function (L) {
         L.list.forEach(function (v) {
+          if (v.drawnAt === v.s) return;
+          v.drawnAt = v.s;
           var q = L.line.at(v.s);
           v.g.setAttribute("transform", "translate(" + q.x.toFixed(1) + " " + q.y.toFixed(1) + ") rotate(" + q.deg.toFixed(1) + ")" + (v.sc ? " scale(" + v.sc + ")" : ""));
         });
@@ -293,10 +298,12 @@
       var visible = true, running = false, prev = 0;
       var frame = function (now) {
         if (!visible) { running = false; return; }
+        requestAnimationFrame(frame);
+        // 30 frames a second is plenty for a small map and halves the repaints.
+        if (prev && now - prev < 30) return;
         var dt = Math.min(0.05, (now - (prev || now)) / 1000);
         prev = now; clock += dt;
         advance(dt); paint();
-        requestAnimationFrame(frame);
       };
       var start = function () { if (!running) { running = true; prev = 0; requestAnimationFrame(frame); } };
       if ("IntersectionObserver" in window) {
