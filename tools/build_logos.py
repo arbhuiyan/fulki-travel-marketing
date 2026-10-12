@@ -139,96 +139,139 @@ def monogram_glyph(x, y, s, ink, accent):
     return top + stem + arm + plane(px, cy, ps, accent)
 
 
-def _bar(x, y, w, h, fill, r=0.12):
-    return f'<rect x="{x:.2f}" y="{y:.2f}" width="{w:.2f}" height="{h:.2f}" rx="{h * r:.2f}" fill="{fill}"/>'
+def f_flight(style, ink, accent, size=512):
+    """Icon only: a monoline F drawn by a plane. It climbed the stem from the bottom, banked right
+    along the top arm, and is still flying at its tip: the top arm is the plane's fuselage."""
+    w = size * 0.078  # stroke weight
+    k = 0.74  # plane size relative to the stroke
+    x0 = (size - 7.6 * w) / 2 + w / 2
+    yt = (size - 8.2 * w) / 2 + 0.5 * w
+    yb = yt + 8.2 * w
+    xn = x0 + 7.6 * w  # nose
+    ym = yt + 3.9 * w
+    r = 1.5 * w
+    line = 'fill="none" stroke-width="{sw:.2f}" stroke-linecap="round" stroke-linejoin="round"'
+
+    def stroke(d, colour, sw=w):
+        return f'<path d="{d}" stroke="{colour}" {line.format(sw=sw)}/>'
+
+    def poly(pts, colour):
+        d = "M" + "L".join(f"{x:.2f} {y:.2f}" for x, y in pts) + "Z"
+        return f'<path d="{d}" fill="{colour}" stroke="{colour}" stroke-width="{w * 0.3:.2f}" stroke-linejoin="round"/>'
+
+    def wings(cy, colour, scale=k):
+        out = ""
+        for sgn in (-1, 1):
+            u = scale * w
+            out += poly([(xn - 1.2 * u, cy), (xn - 2.7 * u, cy + sgn * 2.2 * u),
+                         (xn - 3.4 * u, cy + sgn * 2.2 * u), (xn - 2.9 * u, cy)], colour)
+            out += poly([(xn - 4.4 * u, cy), (xn - 5.0 * u, cy + sgn * 0.95 * u),
+                         (xn - 5.5 * u, cy + sgn * 0.95 * u), (xn - 5.3 * u, cy)], colour)
+        return out
+
+    corner = f"M{x0:.2f} {yt + r:.2f}Q{x0:.2f} {yt:.2f} {x0 + r:.2f} {yt:.2f}"
+    tail_x = xn - 5.2 * k * w
+    gap = 0.55 * w
+    if style == "twin":  # two engine contrails form the F and converge into the plane
+        t, o = w * 0.4, w * 0.38
+        body = ""
+        for k2 in (-1, 1):
+            xo, yo = x0 + k2 * o, yt + k2 * o
+            body += stroke(f"M{xo:.2f} {yb:.2f}V{yt + r:.2f}Q{xo:.2f} {yo:.2f} {x0 + r:.2f} {yo:.2f}H{tail_x + 0.3 * w:.2f}", ink, t)
+            body += stroke(f"M{x0 + o + gap:.2f} {ym + k2 * o:.2f}H{x0 + 4.0 * w:.2f}", ink, t)
+        fus = stroke(f"M{tail_x:.2f} {yt:.2f}H{xn:.2f}", accent, w * 0.9)
+        return body + wings(yt, accent) + fus
+    if style == "dots":  # the trail starts as dots at the bottom
+        cut = yt + 5.4 * w
+        body = stroke(f"M{x0:.2f} {cut:.2f}V{yt + r:.2f}", ink)
+        for dy, rad in [(1.25, 0.5), (2.2, 0.36), (2.95, 0.24)]:
+            body += f'<circle cx="{x0:.2f}" cy="{cut + dy * w:.2f}" r="{rad * w:.2f}" fill="{ink}"/>'
+    elif style == "gap":  # cut into segments, like a trail breaking up behind the plane
+        body = stroke(f"M{x0:.2f} {yb:.2f}V{yb - 0.6 * w:.2f}", ink)
+        body += stroke(f"M{x0:.2f} {yb - 0.6 * w - gap * 2.6:.2f}V{yt + r:.2f}", ink)
+    else:
+        body = stroke(f"M{x0:.2f} {yb:.2f}V{yt + r:.2f}", ink)
+    body += stroke(f"{corner}H{tail_x:.2f}", ink)
+    mid_x0 = x0 + (w + gap if style in ("gap", "dots") else 0)
+    body += stroke(f"M{mid_x0:.2f} {ym:.2f}H{x0 + 4.0 * w:.2f}", ink)
+    return body + stroke(f"M{tail_x:.2f} {yt:.2f}H{xn:.2f}", accent) + wings(yt, accent)
 
 
-def f_mark(style, ink, accent, size=512):
-    """Icon only, no background: a bold F and a plane, in one of four arrangements."""
-    s = size * 0.62
-    st = s * 0.24
-    x = (size - s) / 2
-    y = (size - s) / 2
-    stem = _bar(x, y, st, s, ink)
-    if style == "arm":  # middle arm is the plane on its contrail
-        return monogram_glyph(x, y, s, ink, accent)
-    if style == "top":  # top arm is the plane on its contrail, middle arm stays solid
-        y += s * 0.06
-        stem = _bar(x, y, st, s - s * 0.06, ink)
-        ps = s * 0.0072
-        cy = y + 5.6 * ps
-        px = x + s * 1.02 - 50 * ps
-        arm = _bar(x, cy - 5.6 * ps, px - x, 11.2 * ps, accent, r=0)
-        return stem + _bar(x, y + s * 0.44, s * 0.7, st * 0.85, ink) + arm + plane(px, cy, ps, accent)
-    raise ValueError(style)
+SKIES = {
+    "day": [("0", "#3B97DD"), ("0.6", "#7EC4F0"), ("1", "#B9E2F8")],
+    "sunset": [("0", "#EA580C"), ("0.55", "#F98A3C"), ("1", "#FDBA74")],
+    "dusk": [("0", "#1E3A8A"), ("0.55", "#6D5BBA"), ("1", "#F6A57A")],
+}
 
 
-def _ribbon(pts, widths):
-    """Filled outline of a polyline whose width varies point by point."""
-    left, right = [], []
-    for i, (x, y) in enumerate(pts):
-        x0, y0 = pts[max(i - 1, 0)]
-        x1, y1 = pts[min(i + 1, len(pts) - 1)]
-        dx, dy = x1 - x0, y1 - y0
-        n = math.hypot(dx, dy) or 1
-        nx, ny = -dy / n, dx / n
-        h = widths[i] / 2
-        left.append((x + nx * h, y + ny * h))
-        right.append((x - nx * h, y - ny * h))
-    ring = left + right[::-1]
-    return "M" + "L".join(f"{px:.2f} {py:.2f}" for px, py in ring) + "Z"
+def plane_modern(xn, cy, u, colour):
+    """Flat modern plane, nose at (xn, cy) pointing right; u is the size unit."""
+    def poly(pts):
+        d = "M" + "L".join(f"{x:.2f} {y:.2f}" for x, y in pts) + "Z"
+        return f'<path d="{d}" fill="{colour}" stroke="{colour}" stroke-width="{u * 0.4:.2f}" stroke-linejoin="round"/>'
+    out = (f'<path d="M{xn - 5.2 * u:.2f} {cy:.2f}H{xn - 0.7 * u:.2f}" stroke="{colour}" '
+           f'stroke-width="{1.35 * u:.2f}" stroke-linecap="round"/>')
+    for sgn in (-1, 1):
+        out += poly([(xn - 1.2 * u, cy), (xn - 2.7 * u, cy + sgn * 2.2 * u), (xn - 3.4 * u, cy + sgn * 2.2 * u), (xn - 2.9 * u, cy)])
+        out += poly([(xn - 4.4 * u, cy), (xn - 5.0 * u, cy + sgn * 0.95 * u), (xn - 5.5 * u, cy + sgn * 0.95 * u), (xn - 5.3 * u, cy)])
+    return out
 
 
-def _f_path(x, y, s, corner, steps=60):
-    """Centre line of the F's stem and top arm: bottom of the stem, up, round the corner, right."""
-    r = s * corner
-    pts = [(x, y + s - (s - r) * i / steps) for i in range(steps)]
-    if r:
-        pts += [(x + r - r * math.cos(math.pi / 2 * i / 24), y + r - r * math.sin(math.pi / 2 * i / 24)) for i in range(25)]
-    pts += [(x + r + (s * 0.62 - r) * i / steps, y) for i in range(1, steps + 1)]
-    return pts
+def f_sky(sky, plane_colour=WHITE, shape="square", clouds=False, size=512, uid="s"):
+    """Icon tile: a plane in a light sky whose contrail traces the F.
+
+    Near the plane the contrail is two crisp engine trails; further back they spread into one soft trail."""
+    w = size * 0.068
+    u = w * 0.78
+    x0 = (size - 7.6 * w) / 2 + w * 0.45
+    yt = (size - 8.2 * w) / 2 + 0.7 * w
+    yb = yt + 8.2 * w + w  # runs off the bottom edge
+    xn = x0 + 7.6 * w
+    ym = yt + 3.9 * w
+    r = 1.6 * w
+    tail = xn - 5.2 * u
+    main = f"M{x0:.2f} {yb:.2f}V{yt + r:.2f}Q{x0:.2f} {yt:.2f} {x0 + r:.2f} {yt:.2f}H{tail:.2f}"
+    mid = f"M{x0:.2f} {ym:.2f}H{x0 + 4.0 * w:.2f}"
+    rx = size * 0.22 if shape == "square" else size / 2
+    stops = "".join(f'<stop offset="{o}" stop-color="{c}"/>' for o, c in SKIES[sky])
+    defs = (f'<linearGradient id="sky{uid}" x1="0" y1="0" x2="0.35" y2="1">{stops}</linearGradient>'
+            f'<clipPath id="clip{uid}"><rect width="{size}" height="{size}" rx="{rx:.2f}"/></clipPath>'
+            f'<filter id="soft{uid}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="{w * 0.22:.2f}"/></filter>'
+            f'<filter id="haze{uid}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="{w * 0.9:.2f}"/></filter>'
+            f'<filter id="shadow{uid}" x="-30%" y="-30%" width="160%" height="160%">'
+            f'<feDropShadow dx="0" dy="{w * 0.12:.2f}" stdDeviation="{w * 0.12:.2f}" flood-color="#0C4A6E" flood-opacity="0.25"/></filter>'
+            # crisp trails fade out going back in time (downwards / left); the soft trail fades in
+            f'<linearGradient id="young{uid}" gradientUnits="userSpaceOnUse" x1="{xn:.2f}" y1="{yt:.2f}" x2="{x0:.2f}" y2="{yt + 5.5 * w:.2f}">'
+            f'<stop offset="0" stop-color="#fff"/><stop offset="0.55" stop-color="#fff" stop-opacity="0.8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+            f'<linearGradient id="old{uid}" gradientUnits="userSpaceOnUse" x1="{xn:.2f}" y1="{yt:.2f}" x2="{x0:.2f}" y2="{yt + 6 * w:.2f}">'
+            f'<stop offset="0.05" stop-color="#fff" stop-opacity="0.15"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.95"/><stop offset="1" stop-color="#fff"/></linearGradient>'
+            f'<mask id="my{uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="{size}" height="{size}"><rect width="{size}" height="{size}" fill="url(#young{uid})"/></mask>'
+            f'<mask id="mo{uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="{size}" height="{size}"><rect width="{size}" height="{size}" fill="url(#old{uid})"/></mask>')
+    body = f'<rect width="{size}" height="{size}" fill="url(#sky{uid})"/>'
+    if clouds:  # soft cumulus: overlapping puffs, lightly blurred
+        banks = [(0.16, 0.97, 1.0), (0.5, 1.0, 1.25), (0.86, 0.96, 1.0), (0.84, 0.6, 0.42)]
+        puffs = ""
+        for cx, cy, sc in banks:
+            for dx, dy, rr in [(-0.09, 0.02, 0.06), (-0.03, -0.03, 0.08), (0.05, -0.01, 0.07), (0.11, 0.03, 0.05), (0.0, 0.04, 0.09)]:
+                puffs += f'<circle cx="{(cx + dx * sc) * size:.1f}" cy="{(cy + dy * sc) * size:.1f}" r="{rr * sc * size:.1f}"/>'
+        body += f'<g fill="#fff" opacity="0.85" filter="url(#cloud{uid})">{puffs}</g>'
+        defs += f'<filter id="cloud{uid}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="{size * 0.006:.2f}"/></filter>'
+    soft = (f'<g mask="url(#mo{uid})" filter="url(#soft{uid})" fill="none" stroke="#fff" stroke-linecap="round">'
+            f'<path d="{main}" stroke-width="{w * 1.15:.2f}"/><path d="{mid}" stroke-width="{w * 1.05:.2f}"/></g>')
+    o, t = w * 0.24, w * 0.26
+    twin = ""
+    for k in (-1, 1):
+        xo, yo = x0 + k * o, yt + k * o
+        twin += (f'<path d="M{xo:.2f} {yb:.2f}V{yt + r:.2f}Q{xo:.2f} {yo:.2f} {x0 + r:.2f} {yo:.2f}H{tail + u:.2f}" stroke-width="{t:.2f}"/>'
+                 f'<path d="M{x0:.2f} {ym + k * o:.2f}H{x0 + 4.0 * w:.2f}" stroke-width="{t:.2f}"/>')
+    crisp = f'<g mask="url(#my{uid})" fill="none" stroke="#fff" stroke-linecap="round">{twin}</g>'
+    pl = f'<g filter="url(#shadow{uid})">{plane_modern(xn, yt, u, plane_colour)}</g>'
+    return svg(size, size, f'<g clip-path="url(#clip{uid})">{body}{soft}{crisp}{pl}</g>', TITLE).replace(
+        "<title>", f"<defs>{defs}</defs><title>", 1)
 
 
-def f_trace(style, ink, accent, size=512, uid="a"):
-    """Icon only: the F drawn as the contrail of a plane that took off at the bottom of the stem.
-
-    The trail is oldest, widest and faintest at the bottom, and narrows into the fuselage at the top."""
-    s = size * 0.6
-    ps = s * 0.0066
-    w_end = 11.2 * ps
-    w_start = w_end * (1.75 if style != "line" else 1.0)
-    x = (size - s * 0.62 - 96 * ps) / 2 + w_start / 2
-    y = (size - s) / 2 + 2 * ps
-    pts = _f_path(x, y, s, 0.0 if style == "sharp" else 0.16)
-    n = len(pts)
-    widths = [w_start + (w_end - w_start) * (i / (n - 1)) ** 0.8 for i in range(n)]
-    shapes = [f'<path d="{_ribbon(pts, widths)}"/>',
-              f'<circle cx="{pts[0][0]:.2f}" cy="{pts[0][1]:.2f}" r="{widths[0] / 2:.2f}"/>']
-    # middle arm: a second wisp drifting off the stem
-    my = y + s * 0.5
-    mw = w_start + (w_end - w_start) * 0.5
-    mid = [(x + i * s * 0.4 / 30, my) for i in range(31)]
-    mws = [mw * (1 - 0.3 * i / 30) for i in range(31)]
-    shapes += [f'<path d="{_ribbon(mid, mws)}"/>', f'<circle cx="{mid[-1][0]:.2f}" cy="{my:.2f}" r="{mws[-1] / 2:.2f}"/>']
-    # Shapes are drawn solid and faded with one mask, so overlaps never double up.
-    defs, mask = "", []
-    if style != "line":
-        defs += (f'<linearGradient id="g{uid}" x1="0" y1="{y + s + w_start:.2f}" x2="0" y2="{y:.2f}" gradientUnits="userSpaceOnUse">'
-                 f'<stop offset="0" stop-color="#fff" stop-opacity="0.28"/><stop offset="0.55" stop-color="#fff" stop-opacity="0.92"/>'
-                 f'<stop offset="1" stop-color="#fff"/></linearGradient>')
-        mask.append(f'<rect width="{size}" height="{size}" fill="url(#g{uid})"/>')
-    if style == "dash":
-        mask += [f'<rect x="0" y="{y + s - k * s * 0.09:.2f}" width="{size}" height="{s * 0.035:.2f}" fill="#000"/>'
-                 for k in range(1, 5)]
-    g = f'<g fill="{ink}">{"".join(shapes)}</g>'
-    if mask:
-        defs += f'<mask id="m{uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="{size}" height="{size}">{"".join(mask)}</mask>'
-        g = f'<g fill="{ink}" mask="url(#m{uid})">{"".join(shapes)}</g>'
-    body = g
-    end = pts[-1]
-    body += plane(end[0] + 44 * ps, end[1], ps, accent)
-    out = svg(size, size, body, TITLE)
-    return out.replace("<title>", f"<defs>{defs}</defs><title>", 1) if defs else out
+def f_flight_icon(style, ink, accent):
+    return svg(512, 512, f_flight(style, ink, accent), TITLE)
 
 
 def f_icon(style, ink, accent, size=512):
@@ -298,18 +341,25 @@ VARIANTS = {
     "fulki-icon-plane.svg": lambda: plane_badge(ORANGE, WHITE),
 }
 
-# Icon only, transparent background: black F + plane, four arrangements x three colourways.
-F_STYLES = ["arm", "top"]
 F_COLOURS = {"black": (INK, INK), "black-orange": (INK, ORANGE), "white": (WHITE, WHITE)}
-for _st in F_STYLES:
+# Icon only, transparent background: a modern monoline F drawn by the plane that flew it.
+for _st in ["solid", "gap", "dots", "twin"]:
     for _cn, (_ink, _acc) in F_COLOURS.items():
-        VARIANTS[f"f-mark/fulki-f-{_st}-{_cn}.svg"] = (lambda st=_st, i=_ink, a=_acc: f_icon(st, i, a))
+        VARIANTS[f"f-flight/fulki-f-flight-{_st}-{_cn}.svg"] = (
+            lambda st=_st, i=_ink, a=_acc: f_flight_icon(st, i, a))
 
-# Icon only, transparent background: the F is the contrail the plane leaves behind it.
-for _st in ["trace", "sharp", "line", "dash"]:
-    for _cn, (_ink, _acc) in F_COLOURS.items():
-        VARIANTS[f"f-trace/fulki-f-trace-{_st}-{_cn}.svg"] = (
-            lambda st=_st, i=_ink, a=_acc, u=f"{_st}{_cn}": f_trace(st, i, a, uid=u.replace("-", "")))
+# Icon tiles: a plane in a light sky whose contrail traces the F.
+SKY_ICONS = {
+    "day": dict(sky="day"),
+    "day-orange-plane": dict(sky="day", plane_colour=ORANGE),
+    "day-clouds": dict(sky="day", clouds=True),
+    "sunset": dict(sky="sunset"),
+    "dusk": dict(sky="dusk"),
+}
+for _n, _kw in SKY_ICONS.items():
+    for _shape in ("square", "round"):
+        VARIANTS[f"f-sky/fulki-f-sky-{_n}-{_shape}.svg"] = (
+            lambda kw=_kw, sh=_shape, u=f"{_n}{_shape}".replace("-", ""): f_sky(shape=sh, uid=u, **kw))
 
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
