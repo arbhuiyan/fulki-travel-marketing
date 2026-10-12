@@ -139,6 +139,18 @@ def monogram_glyph(x, y, s, ink, accent):
     return top + stem + arm + plane(px, cy, ps, accent)
 
 
+def signature(cx, baseline, width, fill):
+    """Small FULKI + plane, centred on cx, for the space under the F."""
+    size = width * 0.24
+    d, tw, cap = text_path("FULKI", 700, size, tracking=0.1)
+    ps = cap * 0.0105  # plane about as tall as the caps
+    gap = cap * 0.35
+    pw = 100 * ps
+    x0 = cx - (tw + gap + pw) / 2
+    return (f'<path fill="{fill}" transform="translate({x0:.2f} {baseline:.2f})" d="{d}"/>'
+            + plane(x0 + tw + gap + pw / 2, baseline - cap / 2, ps, fill))
+
+
 def flap_f(x, y, fw, fh, card_top, card_bot, glyph, glyph_bot, uid, hinge="#000"):
     """A split-flap card at (x, y) showing F, with the split line running through the middle."""
     rx = fw * 0.09
@@ -150,8 +162,8 @@ def flap_f(x, y, fw, fh, card_top, card_bot, glyph, glyph_bot, uid, hinge="#000"
             f'<linearGradient id="{clip}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0.35"/>'
             f'<stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>')
     # F: bold, slightly condensed, square ends, like a departure-board face
-    gw, gh = fw * 0.5, fh * 0.64
-    gx, gy = x + (fw - gw) / 2 + fw * 0.02, y + (fh - gh) / 2
+    gw, gh = fw * 0.46, fh * 0.56
+    gx, gy = x + (fw - gw) / 2 + fw * 0.02, y + fh * 0.13
     t = gw * 0.34
     f_shape = (f'<rect x="{gx:.2f}" y="{gy:.2f}" width="{t:.2f}" height="{gh:.2f}"/>'
                f'<rect x="{gx:.2f}" y="{gy:.2f}" width="{gw:.2f}" height="{t * 0.88:.2f}"/>'
@@ -159,7 +171,8 @@ def flap_f(x, y, fw, fh, card_top, card_bot, glyph, glyph_bot, uid, hinge="#000"
     card = f'<rect x="{x:.2f}" y="{y:.2f}" width="{fw:.2f}" height="{fh:.2f}" rx="{rx:.2f}"'
     body = (f'<g clip-path="url(#{clip}t)">{card} fill="{card_top}"/><g fill="{glyph}">{f_shape}</g></g>'
             f'<g clip-path="url(#{clip}b)">{card} fill="{card_bot}"/><g fill="{glyph_bot}">{f_shape}</g>'
-            f'<rect x="{x:.2f}" y="{mid + split:.2f}" width="{fw:.2f}" height="{fh * 0.07:.2f}" fill="url(#{clip}s)"/></g>'
+            f'<rect x="{x:.2f}" y="{mid + split:.2f}" width="{fw:.2f}" height="{fh * 0.07:.2f}" fill="url(#{clip}s)"/>'
+            + signature(x + fw / 2, y + fh * 0.875, fw * 0.5, glyph_bot) + '</g>'
             f'<rect x="{x:.2f}" y="{mid - split:.2f}" width="{fw:.2f}" height="{split * 2:.2f}" fill="{hinge}"/>')
     # hinge pins either side of the split
     pw, ph = fw * 0.035, fh * 0.07
@@ -245,10 +258,10 @@ DOT_F = ["11111", "10000", "10000", "11110", "10000", "10000", "10000"]
 def led_icon(on, off, tile, shape="square", size=512, uid="l"):
     rx = size * 0.22 if shape == "square" else size / 2
     cols, rows = 7, 9  # F sits in the middle with one blank ring of dots around it
-    pitch = size * 0.098
+    pitch = size * 0.08
     r = pitch * 0.38
     ox = (size - (cols - 1) * pitch) / 2
-    oy = (size - (rows - 1) * pitch) / 2
+    oy = (size - (rows - 1) * pitch) / 2 - size * 0.07
     dots = ""
     for rr in range(rows):
         for cc in range(cols):
@@ -257,6 +270,7 @@ def led_icon(on, off, tile, shape="square", size=512, uid="l"):
                 f' filter="url(#glow{uid})"/>' if lit else "/>")
     defs = (f'<filter id="glow{uid}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="{r * 0.35:.2f}" result="b"/>'
             f'<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>')
+    dots += signature(size / 2, oy + (rows - 1) * pitch + size * 0.115, size * 0.34, on)
     return svg(size, size, f'<rect width="{size}" height="{size}" rx="{rx:.2f}" fill="{tile}"/>{dots}', TITLE).replace(
         "<title>", f"<defs>{defs}</defs><title>", 1)
 

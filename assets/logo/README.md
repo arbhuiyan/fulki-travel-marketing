@@ -21,7 +21,7 @@ Text is outlined from Outfit, the site's display font, so the files need no font
 ### Departure-board F (`f-board/`)
 
 Icon only: the F on a split-flap card, as on an airport departures board, with the split running just under
-the middle arm.
+the middle arm and a small FULKI + plane underneath.
 
 - `fulki-f-flap-*`: the single flap card. Themes: `black`, `black-orange`, `black-amber`, `orange`, `light`;
   plus `black-orange-round` for circular avatars.
