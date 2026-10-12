@@ -151,7 +151,7 @@ def signature(cx, baseline, width, fill):
             + plane(x0 + tw + gap + pw / 2, baseline - cap / 2, ps, fill))
 
 
-def flap_f(x, y, fw, fh, card_top, card_bot, glyph, glyph_bot, uid, hinge="#000"):
+def flap_f(x, y, fw, fh, card_top, card_bot, glyph, glyph_bot, uid, hinge="#000", sig=True):
     """A split-flap card at (x, y) showing F, with the split line running through the middle."""
     rx = fw * 0.09
     split = fh * 0.012
@@ -162,8 +162,12 @@ def flap_f(x, y, fw, fh, card_top, card_bot, glyph, glyph_bot, uid, hinge="#000"
             f'<linearGradient id="{clip}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0.35"/>'
             f'<stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>')
     # F: bold, slightly condensed, square ends, like a departure-board face
-    gw, gh = fw * 0.4, fh * 0.48
-    gx, gy = x + (fw - gw) / 2 + fw * 0.02, y + fh * 0.12
+    if sig:  # F sits higher to leave room for FULKI + plane under it
+        gw, gh = fw * 0.4, fh * 0.48
+        gx, gy = x + (fw - gw) / 2 + fw * 0.02, y + fh * 0.12
+    else:
+        gw, gh = fw * 0.5, fh * 0.64
+        gx, gy = x + (fw - gw) / 2 + fw * 0.02, y + (fh - gh) / 2
     t = gw * 0.34
     f_shape = (f'<rect x="{gx:.2f}" y="{gy:.2f}" width="{t:.2f}" height="{gh:.2f}"/>'
                f'<rect x="{gx:.2f}" y="{gy:.2f}" width="{gw:.2f}" height="{t * 0.88:.2f}"/>'
@@ -172,7 +176,7 @@ def flap_f(x, y, fw, fh, card_top, card_bot, glyph, glyph_bot, uid, hinge="#000"
     body = (f'<g clip-path="url(#{clip}t)">{card} fill="{card_top}"/><g fill="{glyph}">{f_shape}</g></g>'
             f'<g clip-path="url(#{clip}b)">{card} fill="{card_bot}"/><g fill="{glyph_bot}">{f_shape}</g>'
             f'<rect x="{x:.2f}" y="{mid + split:.2f}" width="{fw:.2f}" height="{fh * 0.07:.2f}" fill="url(#{clip}s)"/>'
-            + signature(x + fw / 2, y + fh * 0.86, fw * 0.8, glyph_bot) + '</g>'
+            + (signature(x + fw / 2, y + fh * 0.86, fw * 0.8, glyph_bot) if sig else "") + '</g>'
             f'<rect x="{x:.2f}" y="{mid - split:.2f}" width="{fw:.2f}" height="{split * 2:.2f}" fill="{hinge}"/>')
     # hinge pins either side of the split
     pw, ph = fw * 0.035, fh * 0.07
@@ -182,10 +186,11 @@ def flap_f(x, y, fw, fh, card_top, card_bot, glyph, glyph_bot, uid, hinge="#000"
 
 
 # 9 x 7 board; the F card covers the middle of rows 1-5, so those rows show a departure time split around it.
-BOARD_ROWS = [" DEPARTS ", "09     45", "10     30", "12     05", "14     20", "16     40", " ON TIME "]
+# The bottom row spells the name in the card's colours ("^" is the plane).
+BOARD_ROWS = [" DEPARTS ", "09     45", "10     30", "12     05", "14     20", "16     40", " FULKI ^ "]
 
 
-def board_cells(size, cols, rows, cell_fill, char_fill, skip, split_opacity=0.55, pad=0.06):
+def board_cells(size, cols, rows, cell_fill, char_fill, skip, split_opacity=0.55, pad=0.06, brand=None):
     """Background of small split-flap cells spelling out departures. `skip(c, r)` leaves a cell empty."""
     pad = size * pad
     cw = (size - 2 * pad) / cols
@@ -199,11 +204,14 @@ def board_cells(size, cols, rows, cell_fill, char_fill, skip, split_opacity=0.55
                 continue
             cx, cy = pad + c * cw + cw * 0.06, top + r * ch + ch * 0.06
             w, h = cw * 0.88, ch * 0.88
-            out += f'<rect x="{cx:.2f}" y="{cy:.2f}" width="{w:.2f}" height="{h:.2f}" rx="{w * 0.12:.2f}" fill="{cell_fill}"/>'
             chr_ = row[c] if c < len(row) else " "
-            if chr_.strip():
-                d, gw, cap = text_path(chr_, 600, h * 0.62)
-                out += (f'<path fill="{char_fill}" transform="translate({cx + (w - gw) / 2:.2f} {cy + (h + cap) / 2:.2f})" d="{d}"/>')
+            cf, tf = (brand if brand and r == rows - 1 and chr_.strip() else (cell_fill, char_fill))
+            out += f'<rect x="{cx:.2f}" y="{cy:.2f}" width="{w:.2f}" height="{h:.2f}" rx="{w * 0.12:.2f}" fill="{cf}"/>'
+            if chr_ == "^":
+                out += plane(cx + w / 2, cy + h / 2, w * 0.0088, tf)
+            elif chr_.strip():
+                d, gw, cap = text_path(chr_, 700 if cf != cell_fill else 600, h * 0.62)
+                out += (f'<path fill="{tf}" transform="translate({cx + (w - gw) / 2:.2f} {cy + (h + cap) / 2:.2f})" d="{d}"/>')
             out += f'<rect x="{cx:.2f}" y="{cy + h / 2 - h * 0.025:.2f}" width="{w:.2f}" height="{h * 0.05:.2f}" fill="#000" opacity="{split_opacity}"/>'
     return out
 
@@ -242,8 +250,8 @@ def flap_icon(theme, board=False, shape="square", size=512, uid="f"):
         def skip(c, r):
             cx0, cy0 = pad + c * cw, tp + r * ch
             return cx0 + cw > x - cw * 0.15 and cx0 < x + fw + cw * 0.15 and cy0 + ch > y - ch * 0.1 and cy0 < y + fh + ch * 0.1
-        body += board_cells(size, cols, rows, cell, char, skip, 0.12 if light else 0.55, 0.075)
-    d, b = flap_f(x, y, fw, fh, top, bot, g, gb, uid, hinge)
+        body += board_cells(size, cols, rows, cell, char, skip, 0.12 if light else 0.55, 0.075, brand=(top, g))
+    d, b = flap_f(x, y, fw, fh, top, bot, g, gb, uid, hinge, sig=not board)
     shadow = (f'<filter id="sh{uid}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="{size * 0.012:.2f}" '
               f'stdDeviation="{size * 0.018:.2f}" flood-color="#000" flood-opacity="{0.15 if theme == "light" else 0.5}"/></filter>')
     body += f'<g filter="url(#sh{uid})">{b}</g>'

@@ -25,7 +25,7 @@ the middle arm and a small FULKI + plane underneath.
 
 - `fulki-f-flap-*`: the single flap card. Themes: `black`, `black-orange`, `black-amber`, `orange`, `light`;
   plus `black-orange-round` for circular avatars.
-- `fulki-f-board-*`: the same card set into a departures board (DEPARTS / times / ON TIME). Best at 128 px and up;
+- `fulki-f-board-*`: the same card set into a departures board (DEPARTS / times), with FULKI + plane spelled out on the bottom row of flaps. Best at 128 px and up;
   use the flap version for small sizes.
 - `fulki-f-led-*`: dot-matrix F, as on LED departure displays (`amber`, `orange`).
 
