@@ -139,6 +139,106 @@ def monogram_glyph(x, y, s, ink, accent):
     return top + stem + arm + plane(px, cy, ps, accent)
 
 
+def _bar(x, y, w, h, fill, r=0.12):
+    return f'<rect x="{x:.2f}" y="{y:.2f}" width="{w:.2f}" height="{h:.2f}" rx="{h * r:.2f}" fill="{fill}"/>'
+
+
+def f_mark(style, ink, accent, size=512):
+    """Icon only, no background: a bold F and a plane, in one of four arrangements."""
+    s = size * 0.62
+    st = s * 0.24
+    x = (size - s) / 2
+    y = (size - s) / 2
+    stem = _bar(x, y, st, s, ink)
+    if style == "arm":  # middle arm is the plane on its contrail
+        return monogram_glyph(x, y, s, ink, accent)
+    if style == "top":  # top arm is the plane on its contrail, middle arm stays solid
+        y += s * 0.06
+        stem = _bar(x, y, st, s - s * 0.06, ink)
+        ps = s * 0.0072
+        cy = y + 5.6 * ps
+        px = x + s * 1.02 - 50 * ps
+        arm = _bar(x, cy - 5.6 * ps, px - x, 11.2 * ps, accent, r=0)
+        return stem + _bar(x, y + s * 0.44, s * 0.7, st * 0.85, ink) + arm + plane(px, cy, ps, accent)
+    raise ValueError(style)
+
+
+def _ribbon(pts, widths):
+    """Filled outline of a polyline whose width varies point by point."""
+    left, right = [], []
+    for i, (x, y) in enumerate(pts):
+        x0, y0 = pts[max(i - 1, 0)]
+        x1, y1 = pts[min(i + 1, len(pts) - 1)]
+        dx, dy = x1 - x0, y1 - y0
+        n = math.hypot(dx, dy) or 1
+        nx, ny = -dy / n, dx / n
+        h = widths[i] / 2
+        left.append((x + nx * h, y + ny * h))
+        right.append((x - nx * h, y - ny * h))
+    ring = left + right[::-1]
+    return "M" + "L".join(f"{px:.2f} {py:.2f}" for px, py in ring) + "Z"
+
+
+def _f_path(x, y, s, corner, steps=60):
+    """Centre line of the F's stem and top arm: bottom of the stem, up, round the corner, right."""
+    r = s * corner
+    pts = [(x, y + s - (s - r) * i / steps) for i in range(steps)]
+    if r:
+        pts += [(x + r - r * math.cos(math.pi / 2 * i / 24), y + r - r * math.sin(math.pi / 2 * i / 24)) for i in range(25)]
+    pts += [(x + r + (s * 0.62 - r) * i / steps, y) for i in range(1, steps + 1)]
+    return pts
+
+
+def f_trace(style, ink, accent, size=512, uid="a"):
+    """Icon only: the F drawn as the contrail of a plane that took off at the bottom of the stem.
+
+    The trail is oldest, widest and faintest at the bottom, and narrows into the fuselage at the top."""
+    s = size * 0.6
+    ps = s * 0.0066
+    w_end = 11.2 * ps
+    w_start = w_end * (1.75 if style != "line" else 1.0)
+    x = (size - s * 0.62 - 96 * ps) / 2 + w_start / 2
+    y = (size - s) / 2 + 2 * ps
+    pts = _f_path(x, y, s, 0.0 if style == "sharp" else 0.16)
+    n = len(pts)
+    widths = [w_start + (w_end - w_start) * (i / (n - 1)) ** 0.8 for i in range(n)]
+    shapes = [f'<path d="{_ribbon(pts, widths)}"/>',
+              f'<circle cx="{pts[0][0]:.2f}" cy="{pts[0][1]:.2f}" r="{widths[0] / 2:.2f}"/>']
+    # middle arm: a second wisp drifting off the stem
+    my = y + s * 0.5
+    mw = w_start + (w_end - w_start) * 0.5
+    mid = [(x + i * s * 0.4 / 30, my) for i in range(31)]
+    mws = [mw * (1 - 0.3 * i / 30) for i in range(31)]
+    shapes += [f'<path d="{_ribbon(mid, mws)}"/>', f'<circle cx="{mid[-1][0]:.2f}" cy="{my:.2f}" r="{mws[-1] / 2:.2f}"/>']
+    # Shapes are drawn solid and faded with one mask, so overlaps never double up.
+    defs, mask = "", []
+    if style != "line":
+        defs += (f'<linearGradient id="g{uid}" x1="0" y1="{y + s + w_start:.2f}" x2="0" y2="{y:.2f}" gradientUnits="userSpaceOnUse">'
+                 f'<stop offset="0" stop-color="#fff" stop-opacity="0.28"/><stop offset="0.55" stop-color="#fff" stop-opacity="0.92"/>'
+                 f'<stop offset="1" stop-color="#fff"/></linearGradient>')
+        mask.append(f'<rect width="{size}" height="{size}" fill="url(#g{uid})"/>')
+    if style == "dash":
+        mask += [f'<rect x="0" y="{y + s - k * s * 0.09:.2f}" width="{size}" height="{s * 0.035:.2f}" fill="#000"/>'
+                 for k in range(1, 5)]
+    g = f'<g fill="{ink}">{"".join(shapes)}</g>'
+    if mask:
+        defs += f'<mask id="m{uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="{size}" height="{size}">{"".join(mask)}</mask>'
+        g = f'<g fill="{ink}" mask="url(#m{uid})">{"".join(shapes)}</g>'
+    body = g
+    end = pts[-1]
+    body += plane(end[0] + 44 * ps, end[1], ps, accent)
+    out = svg(size, size, body, TITLE)
+    return out.replace("<title>", f"<defs>{defs}</defs><title>", 1) if defs else out
+
+
+def f_icon(style, ink, accent, size=512):
+    out = f_mark(style, ink, accent, size)
+    defs, body = out if isinstance(out, tuple) else ("", out)
+    if defs:
+        return svg(size, size, body, TITLE).replace('<title>', f'<defs>{defs}</defs><title>', 1)
+    return svg(size, size, body, TITLE)
+
+
 def icon(bg, ink, accent, size=512, shape="square"):
     s = size * 0.5
     x = (size - s * 1.0) / 2 - size * 0.01
@@ -198,8 +298,22 @@ VARIANTS = {
     "fulki-icon-plane.svg": lambda: plane_badge(ORANGE, WHITE),
 }
 
+# Icon only, transparent background: black F + plane, four arrangements x three colourways.
+F_STYLES = ["arm", "top"]
+F_COLOURS = {"black": (INK, INK), "black-orange": (INK, ORANGE), "white": (WHITE, WHITE)}
+for _st in F_STYLES:
+    for _cn, (_ink, _acc) in F_COLOURS.items():
+        VARIANTS[f"f-mark/fulki-f-{_st}-{_cn}.svg"] = (lambda st=_st, i=_ink, a=_acc: f_icon(st, i, a))
+
+# Icon only, transparent background: the F is the contrail the plane leaves behind it.
+for _st in ["trace", "sharp", "line", "dash"]:
+    for _cn, (_ink, _acc) in F_COLOURS.items():
+        VARIANTS[f"f-trace/fulki-f-trace-{_st}-{_cn}.svg"] = (
+            lambda st=_st, i=_ink, a=_acc, u=f"{_st}{_cn}": f_trace(st, i, a, uid=u.replace("-", "")))
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     for name, make in VARIANTS.items():
+        (OUT / name).parent.mkdir(parents=True, exist_ok=True)
         (OUT / name).write_text(make())
         print("wrote", OUT / name)
