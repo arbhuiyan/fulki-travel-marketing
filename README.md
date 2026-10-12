@@ -6,6 +6,18 @@ We book flights to destinations worldwide and support our clients in person, by 
 
 **Visit the site:** https://fulkitravels.com/
 
+## Editing the site
+
+`index.html` holds every language. After changing it, regenerate the per-language pages
+(`/it/`, `/en/`, `/fr/`, `/es/`, `/de/`, `/bn/`) and `sitemap.xml`:
+
+```sh
+python3 tools/build_lang_pages.py
+```
+
+The link-preview image `assets/og-image.png` is drawn from `tools/og-image.html`; re-render it with
+`node tools/build_og_image.mjs` (needs Playwright).
+
 ## Contact
 
 - **Address:** Via 4 Martiri, 44, 36071 Arzignano (VI), Italy

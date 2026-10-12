@@ -3,9 +3,12 @@
   var root = document.documentElement;
   root.classList.add("js");
 
-  // Language: the visitor's saved choice, else the first browser language we offer, else Italian.
+  // Language: a language page (/en/ …) shows its own; the home page uses the visitor's saved choice,
+  // else the first browser language we offer, else Italian.
   var KEY = "fulki.site.lang";
   var LANGS = ["it", "en", "fr", "es", "de", "bn"];
+  var pathLang = (location.pathname.match(/^\/([a-z]{2})\//) || [])[1];
+  var langPage = LANGS.indexOf(pathLang) !== -1;
   var menu = document.querySelector("[data-lang-menu]");
   var toggle = menu && menu.querySelector(".lang-toggle");
   var list = menu && menu.querySelector(".lang-list");
@@ -17,6 +20,7 @@
     buttons.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.setLang === lang)); });
   }
   function detectLang() {
+    if (langPage) return pathLang;
     var saved = null;
     try { saved = localStorage.getItem(KEY); } catch (e) {}
     if (LANGS.indexOf(saved) !== -1) return saved;
@@ -57,6 +61,8 @@
       b.addEventListener("click", function () {
         setLang(b.dataset.setLang);
         try { localStorage.setItem(KEY, b.dataset.setLang); } catch (e) {}
+        // On a language page, move to the chosen language's address so a reload or a shared link keeps it.
+        if (langPage && history.replaceState) history.replaceState(null, "", "/" + b.dataset.setLang + "/" + location.hash);
         openMenu(false);
         toggle.focus();
       });
@@ -68,6 +74,19 @@
   function onScroll() { header.classList.toggle("scrolled", window.scrollY > 8); }
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
+
+  // Floating WhatsApp button: appears once the hero's WhatsApp button has scrolled out of view.
+  var waFloat = document.querySelector("[data-wa-float]");
+  var heroCta = document.querySelector(".hero .cta-row");
+  if (waFloat) {
+    if (heroCta && "IntersectionObserver" in window) {
+      new IntersectionObserver(function (entries) {
+        waFloat.classList.toggle("show", !entries[0].isIntersecting && entries[0].boundingClientRect.top < 0);
+      }).observe(heroCta);
+    } else {
+      waFloat.classList.add("show");
+    }
+  }
 
   // Gentle reveal on scroll, staggered within each group.
   var items = document.querySelectorAll(".reveal");

@@ -377,6 +377,18 @@ body:has(.privacy[open]) { overflow: hidden; }
 .js .reveal.in { opacity: 1; transform: none; }
 
 /* Responsive */
+/* Floating WhatsApp button: phones only, where the header button is hidden. */
+.wa-float {
+  position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 40;
+  display: none; align-items: center; gap: 8px; padding: 14px 18px; border-radius: 999px;
+  background: var(--orange); color: #fff; text-decoration: none; font: 700 .95rem/1 var(--body);
+  box-shadow: 0 12px 28px -8px rgb(234 88 12 / 0.65), 0 2px 6px rgb(0 0 0 / 0.12);
+  transition: opacity .3s var(--ease), transform .3s var(--ease);
+}
+.wa-float svg { width: 20px; height: 20px; }
+.wa-float:active { transform: scale(.96); }
+.js .wa-float:not(.show) { opacity: 0; transform: translateY(16px); pointer-events: none; visibility: hidden; }
+
 @media (max-width: 1020px) {
   .cards { grid-template-columns: repeat(2, 1fr); }
   .b2b-grid { grid-template-columns: 1fr; gap: 40px; }
@@ -393,6 +405,8 @@ body:has(.privacy[open]) { overflow: hidden; }
 }
 @media (max-width: 560px) {
   .hide-sm { display: none; }
+  .wa-float { display: inline-flex; }
+  .site-footer { padding-bottom: 96px; }
   .cards, .b2b-benefits { grid-template-columns: 1fr; }
   .cta-row .btn { flex: 1 1 100%; }
   .float-card { padding: 9px 12px 9px 9px; gap: 10px; }

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pagina non trovata · Fulki Travel</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#EA580C" />
+  <link rel="icon" href="/assets/favicon.svg?v=20261012i" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css?v=20261012i" />
+  <script>
+    // Same choice as the home page: saved language, else the browser's, else Italian.
+    (function () {
+      var langs = ["it", "en", "fr", "es", "de", "bn"], lang = null;
+      try { lang = localStorage.getItem("fulki.site.lang"); } catch (e) {}
+      if (langs.indexOf(lang) === -1) {
+        lang = "it";
+        var prefs = navigator.languages || [navigator.language];
+        for (var i = 0; i < prefs.length; i++) {
+          var code = String(prefs[i] || "").slice(0, 2).toLowerCase();
+          if (langs.indexOf(code) !== -1) { lang = code; break; }
+        }
+      }
+      document.documentElement.lang = lang;
+    })();
+  </script>
+  <style>
+    .notfound { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; text-align: center; padding: 48px 16px; }
+    .notfound .notfound-code { margin: 0; font: 800 clamp(4.5rem, 18vw, 8rem)/1 var(--display); color: var(--orange); letter-spacing: -0.04em; }
+    .notfound h1 { font-size: clamp(1.6rem, 5vw, 2.2rem); margin-top: 12px; }
+    .notfound p { color: var(--ink-2); margin: 14px auto 28px; max-width: 30em; }
+    .notfound .cta-row { justify-content: center; }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-chat" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    </defs>
+  </svg>
+  <main class="notfound">
+    <div>
+      <p class="notfound-code" aria-hidden="true">404</p>
+      <h1><span data-l="it">Questa pagina non c’è</span><span data-l="en">This page doesn’t exist</span><span data-l="fr">Cette page n’existe pas</span><span data-l="es">Esta página no existe</span><span data-l="de">Diese Seite gibt es nicht</span><span data-l="bn">এই পেজটি পাওয়া যায়নি</span></h1>
+      <p><span data-l="it">Forse il link è sbagliato o la pagina è stata spostata. Torna alla home oppure scrivici: ti aiutiamo noi.</span><span data-l="en">The link may be wrong or the page may have moved. Go back to the home page or message us and we’ll help.</span><span data-l="fr">Le lien est peut-être erroné ou la page a été déplacée. Revenez à l’accueil ou écrivez-nous : nous vous aiderons.</span><span data-l="es">Puede que el enlace esté mal o que la página se haya movido. Vuelve al inicio o escríbenos y te ayudamos.</span><span data-l="de">Vielleicht ist der Link falsch oder die Seite wurde verschoben. Zurück zur Startseite oder schreiben Sie uns – wir helfen Ihnen.</span><span data-l="bn">লিংকটি হয়তো ভুল, বা পেজটি সরানো হয়েছে। হোম পেজে ফিরে যান, অথবা আমাদের লিখুন, আমরা সাহায্য করব।</span></p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://wa.me/390444022494" target="_blank" rel="noopener"><svg><use href="#i-chat"/></svg>WhatsApp</a>
+        <a class="btn btn-ghost" href="/"><span data-l="it">Torna alla home</span><span data-l="en">Back to home</span><span data-l="fr">Retour à l’accueil</span><span data-l="es">Volver al inicio</span><span data-l="de">Zur Startseite</span><span data-l="bn">হোম পেজে ফিরুন</span><svg><use href="#i-arrow"/></svg></a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
