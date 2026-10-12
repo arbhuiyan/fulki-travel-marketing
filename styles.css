@@ -1,6 +1,6 @@
 /* Fulki Travel — marketing site. Brand tokens mirror the booking app (orange-600, Outfit + Manrope). */
-@font-face { font-family: "Outfit"; src: url("/fulki-travel-marketing/assets/fonts/outfit.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: "Manrope"; src: url("/fulki-travel-marketing/assets/fonts/manrope.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+@font-face { font-family: "Outfit"; src: url("/assets/fonts/outfit.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("/assets/fonts/manrope.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
 :root {
   --orange: #ea580c;
   --orange-600: #ea580c;

@@ -4,7 +4,7 @@ The website of **Fulki Travel**, a travel agency in Arzignano (VI), Italy.
 
 We book flights to destinations worldwide and support our clients in person, by phone and on WhatsApp. We also work with agencies and businesses as B2B partners.
 
-**Visit the site:** https://arbhuiyan.github.io/fulki-travel-marketing/
+**Visit the site:** https://fulkitravels.com/
 
 ## Contact
 
