@@ -267,6 +267,12 @@ svg:has(> use[href^="#i-"]) {
 .streetmap .casing path { stroke: #e3d9cc; stroke-width: 40; }
 .streetmap .casing path:first-child { stroke-width: 50; }
 .street-labels text { font: 600 22px var(--body); fill: #8a8178; letter-spacing: .02em; }
+.streetmap .centerline { fill: none; stroke: #ece3d7; stroke-width: 2; stroke-dasharray: 14 12; }
+.zebra rect { fill: #d9cfc2; }
+.zebra .zebra-bed { fill: #fff; }
+.traffic .vehicle { filter: drop-shadow(0 2px 1.5px rgb(0 0 0 / .18)); }
+.traffic .brake { fill: #ef4444; opacity: 0; transition: opacity .2s; }
+.traffic .braking .brake { opacity: 1; }
 .agency-building { fill: var(--orange-100); stroke: var(--orange); stroke-width: 2.5; }
 .agency-ring { fill: none; stroke: var(--orange); stroke-width: 3; transform-box: fill-box; transform-origin: center; animation: pulse 2.8s var(--ease) infinite; }
 @keyframes pulse { from { transform: scale(1); opacity: .8; } to { transform: scale(3.4); opacity: 0; } }
