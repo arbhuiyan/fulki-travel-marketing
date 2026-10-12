@@ -43,7 +43,12 @@ html:not([lang="it"]) [data-l="it"],
 html:not([lang="en"]) [data-l="en"],
 html:not([lang="fr"]) [data-l="fr"],
 html:not([lang="es"]) [data-l="es"],
-html:not([lang="de"]) [data-l="de"] { display: none !important; }
+html:not([lang="de"]) [data-l="de"],
+html:not([lang="bn"]) [data-l="bn"] { display: none !important; }
+/* Bengali script: letter-spacing breaks its joined letters, and its glyphs need taller lines. */
+html[lang="bn"] [data-l="bn"], html[lang="bn"] [data-l="bn"] * { letter-spacing: 0 !important; }
+html[lang="bn"] h1 { line-height: 1.2; }
+html[lang="bn"] h2, html[lang="bn"] h3 { line-height: 1.3; }
 
 /* Sprite icons */
 svg:has(> use[href^="#i-"]) {
