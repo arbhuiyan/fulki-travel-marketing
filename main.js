@@ -3,23 +3,65 @@
   var root = document.documentElement;
   root.classList.add("js");
 
-  // Language: Italian by default; remember the visitor's choice when storage is available.
+  // Language: the visitor's saved choice, else the first browser language we offer, else Italian.
   var KEY = "fulki.site.lang";
+  var LANGS = ["it", "en", "fr", "es", "de"];
+  var menu = document.querySelector("[data-lang-menu]");
+  var toggle = menu && menu.querySelector(".lang-toggle");
+  var list = menu && menu.querySelector(".lang-list");
+  var langLabel = menu && menu.querySelector("[data-lang-current]");
   var buttons = document.querySelectorAll("[data-set-lang]");
   function setLang(lang) {
     root.lang = lang;
+    if (langLabel) langLabel.textContent = lang.toUpperCase();
     buttons.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.setLang === lang)); });
   }
-  var saved = null;
-  try { saved = localStorage.getItem(KEY); } catch (e) {}
-  if (saved === "it" || saved === "en") setLang(saved);
-  else if (!/^it\b/i.test(navigator.language || "it")) setLang("en");
-  buttons.forEach(function (b) {
-    b.addEventListener("click", function () {
-      setLang(b.dataset.setLang);
-      try { localStorage.setItem(KEY, b.dataset.setLang); } catch (e) {}
+  function detectLang() {
+    var saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) {}
+    if (LANGS.indexOf(saved) !== -1) return saved;
+    var prefs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+    for (var i = 0; i < prefs.length; i++) {
+      var code = String(prefs[i] || "").slice(0, 2).toLowerCase();
+      if (LANGS.indexOf(code) !== -1) return code;
+    }
+    return "it";
+  }
+  setLang(detectLang());
+
+  // Language dropdown: opens from the toggle, closes on choice, Escape or a click elsewhere.
+  if (menu) {
+    var openMenu = function (open, focusChoice) {
+      list.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+      if (open && focusChoice) (list.querySelector('[aria-pressed="true"]') || buttons[0]).focus();
+    };
+    toggle.addEventListener("click", function () { openMenu(list.hidden, false); });
+    toggle.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); openMenu(true, true); }
     });
-  });
+    list.addEventListener("keydown", function (e) {
+      var items = Array.prototype.slice.call(buttons);
+      var i = items.indexOf(document.activeElement);
+      if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+      else if (e.key === "Home") { e.preventDefault(); items[0].focus(); }
+      else if (e.key === "End") { e.preventDefault(); items[items.length - 1].focus(); }
+    });
+    menu.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !list.hidden) { openMenu(false); toggle.focus(); }
+    });
+    document.addEventListener("click", function (e) { if (!menu.contains(e.target)) openMenu(false); });
+    menu.addEventListener("focusout", function (e) { if (e.relatedTarget && !menu.contains(e.relatedTarget)) openMenu(false); });
+    buttons.forEach(function (b) {
+      b.addEventListener("click", function () {
+        setLang(b.dataset.setLang);
+        try { localStorage.setItem(KEY, b.dataset.setLang); } catch (e) {}
+        openMenu(false);
+        toggle.focus();
+      });
+    });
+  }
 
   // Header border once the page scrolls.
   var header = document.querySelector(".site-header");
@@ -90,7 +132,18 @@
   var SLOTS = [[540, 780], [900, 1140]];
   var DAYS = {
     it: ["domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"],
-    en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    fr: ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"],
+    es: ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
+    de: ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"]
+  };
+  // Each phrase takes the time (and, when it isn't tomorrow, the day) to show.
+  var STATUS = {
+    it: { open: "Aperto · chiude alle {t}", later: "Chiuso · apre alle {t}", tomorrow: "Chiuso · apre domani alle {t}", day: "Chiuso · apre {d} alle {t}" },
+    en: { open: "Open · closes at {t}", later: "Closed · opens at {t}", tomorrow: "Closed · opens tomorrow at {t}", day: "Closed · opens {d} at {t}" },
+    fr: { open: "Ouvert · ferme à {t}", later: "Fermé · ouvre à {t}", tomorrow: "Fermé · ouvre demain à {t}", day: "Fermé · ouvre {d} à {t}" },
+    es: { open: "Abierto · cierra a las {t}", later: "Cerrado · abre a las {t}", tomorrow: "Cerrado · abre mañana a las {t}", day: "Cerrado · abre el {d} a las {t}" },
+    de: { open: "Geöffnet · schließt um {t}", later: "Geschlossen · öffnet um {t}", tomorrow: "Geschlossen · öffnet morgen um {t}", day: "Geschlossen · öffnet {d} um {t}" }
   };
   function hhmm(min) { return Math.floor(min / 60) + ":" + ("0" + (min % 60)).slice(-2); }
   function romeNow() {
@@ -102,29 +155,32 @@
   }
   function updateStatus() {
     var now = romeNow();
-    var it, en, open = false;
+    var key, time, nextDay = null, open = false;
     var slots = now.day === 0 ? [] : SLOTS;
     for (var i = 0; i < slots.length; i++) {
       if (now.min >= slots[i][0] && now.min < slots[i][1]) {
         open = true;
-        it = "Aperto · chiude alle " + hhmm(slots[i][1]);
-        en = "Open · closes at " + hhmm(slots[i][1]);
+        key = "open";
+        time = slots[i][1];
       }
     }
     if (!open) {
       var later = slots.filter(function (s) { return s[0] > now.min; })[0];
       if (later) {
-        it = "Chiuso · apre alle " + hhmm(later[0]);
-        en = "Closed · opens at " + hhmm(later[0]);
+        key = "later";
+        time = later[0];
       } else {
         var next = now.day === 6 ? 1 : (now.day + 1) % 7;
-        var tomorrow = next === (now.day + 1) % 7;
-        it = "Chiuso · apre " + (tomorrow ? "domani" : DAYS.it[next]) + " alle 9:00";
-        en = "Closed · opens " + (tomorrow ? "tomorrow" : DAYS.en[next]) + " at 9:00";
+        key = next === (now.day + 1) % 7 ? "tomorrow" : "day";
+        nextDay = next;
+        time = SLOTS[0][0];
       }
     }
     status.className = "status" + (open ? " open" : "");
-    status.innerHTML = '<span data-l="it">' + it + '</span><span data-l="en">' + en + "</span>";
+    status.innerHTML = LANGS.map(function (l) {
+      var text = STATUS[l][key].replace("{t}", hhmm(time)).replace("{d}", nextDay === null ? "" : DAYS[l][nextDay]);
+      return '<span data-l="' + l + '">' + text + "</span>";
+    }).join("");
     status.hidden = false;
   }
   if (status && window.Intl) {

@@ -39,8 +39,11 @@ h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; line-height: 
 p { margin: 0; }
 
 /* Language switching: Italian is the default; JS flips <html lang>. */
-html[lang="it"] [data-l="en"],
-html[lang="en"] [data-l="it"] { display: none !important; }
+html:not([lang="it"]) [data-l="it"],
+html:not([lang="en"]) [data-l="en"],
+html:not([lang="fr"]) [data-l="fr"],
+html:not([lang="es"]) [data-l="es"],
+html:not([lang="de"]) [data-l="de"] { display: none !important; }
 
 /* Sprite icons */
 svg:has(> use[href^="#i-"]) {
@@ -89,12 +92,33 @@ svg:has(> use[href^="#i-"]) {
 }
 .nav a:hover { background: rgb(0 0 0 / 0.04); color: var(--ink); }
 .header-actions { display: flex; align-items: center; gap: 10px; }
-.lang { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
-.lang button {
-  font: 700 .75rem/1 var(--body); letter-spacing: .04em; border: 0; background: none; color: var(--muted);
-  padding: 7px 10px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s;
+.lang { position: relative; }
+.lang-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 700 .78rem/1 var(--body); letter-spacing: .04em; color: var(--ink);
+  padding: 8px 10px 8px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+  cursor: pointer; transition: border-color .2s, background .2s;
 }
-.lang button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.lang-toggle:hover, .lang-toggle[aria-expanded="true"] { border-color: #d6d3d1; background: var(--orange-50); }
+.lang-toggle svg:first-child { color: var(--orange); }
+.lang-toggle .lang-caret { width: 1em; height: 1em; color: var(--muted); transition: transform .2s var(--ease); }
+.lang-toggle[aria-expanded="true"] .lang-caret { transform: rotate(180deg); }
+.lang-list {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; min-width: 168px;
+  margin: 0; padding: 6px; list-style: none;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg);
+}
+.lang-list[hidden] { display: none; }
+.lang-list button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  font: 600 .92rem/1 var(--body); color: var(--ink-2); text-align: left;
+  padding: 10px 12px; border: 0; border-radius: 9px; background: none; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.lang-list button b { width: 22px; font-size: .72rem; letter-spacing: .04em; color: var(--muted); }
+.lang-list button:hover, .lang-list button:focus-visible { background: rgb(0 0 0 / 0.04); color: var(--ink); outline-offset: -2px; }
+.lang-list button[aria-pressed="true"] { background: var(--orange-50); color: var(--orange); }
+.lang-list button[aria-pressed="true"] b { color: var(--orange); }
 
 /* Buttons */
 .btn {
