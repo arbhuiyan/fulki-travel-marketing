@@ -197,6 +197,8 @@ def earth_rhythm():
     bed(wind, 0, dur, 0.18)
     # into each scene: wind gathers, then lands on a stone thump with a splash
     add(wind_riser(c0), 0, gain=0.5, verb=0.3)
+    for i, s in enumerate(np.arange(0.4, c0 - 0.4, beat)):  # first drops while the intro holds
+        add(drop(midi(D_MIN[[3, 5, 4, 6, 5][i % 5]]), decay=10), s, pan=0.3 * (-1) ** i, gain=0.22, verb=0.8)
     for c in (c1, c2, c3):
         add(wind_riser(1.3), c - 1.3, gain=0.55, verb=0.3)
     for c in cuts:
@@ -237,6 +239,13 @@ def earth_rhythm():
     add(ocean_wave(dur - land + 0.5, 0.5), land - 0.3, gain=0.45, verb=0.2)
     for i, m in enumerate((5, 7, 9, 10)):
         add(drop(midi(D_PENT[m]), decay=6), land + 0.15 + i * 0.16, pan=0.3 - 0.2 * i, gain=0.3, verb=0.8)
+    # while the contacts hold: the groove settles into a relaxed half-time and fades
+    for i, s in enumerate(np.arange(land + 2 * beat, dur - 0.8, beat)):
+        fade = 1 - (s - land) / (dur - land)
+        if i % 2 == 0:
+            add(thump(0.7), s, gain=0.6 * fade, verb=0.3)
+        add(sand(), s + beat / 2, pan=0.35, gain=0.2 * fade)
+        add(drop(midi(D_PENT[[7, 5, 6, 4, 5, 3, 4, 5][i % 8]]), decay=12), s, pan=-0.3 * (-1) ** i, gain=0.2 * fade, verb=0.7)
 
 
 def monsoon():
@@ -286,6 +295,9 @@ def water_melody():
         add(drop(midi(D_PENT[m]), decay=4), land + i * 0.11, pan=-0.3 + 0.2 * i, gain=0.32, verb=0.9)
         add(drop(midi(D_PENT[m] - 24), decay=4, glide=1.05), land, gain=0.12, verb=0.6)
     add(ocean_wave(dur - land + 0.6, 1.0), land - 0.4, gain=0.35, verb=0.2)
+    for i, s in enumerate(np.arange(land + 1.2, dur - 1.0, beat)):  # the tune drifting away
+        m = [7, 6, 5, 4, 5, 3, 4, 2][i % 8]
+        add(drop(midi(D_PENT[m]), decay=9), s, pan=0.3 * (-1) ** i, gain=0.24 * (1 - (s - land) / (dur - land)), verb=0.8)
 
 
 def ocean_breeze():
@@ -320,7 +332,7 @@ mix *= 10 ** (-15 / 20) / np.sqrt((mix**2).mean())  # loudness to about -15 dBFS
 knee = 0.75
 mag = np.abs(mix)
 mix = np.where(mag < knee, mix, np.sign(mix) * (knee + (0.98 - knee) * np.tanh((mag - knee) / (0.98 - knee))))
-mix *= 0.93
+mix *= 0.85  # headroom for the AAC encoder
 
 with wave.open(sys.argv[2], "wb") as f:
     f.setnchannels(2)

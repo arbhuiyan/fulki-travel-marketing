@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Source of assets/video/fulki-promo-*.mp4, a 15 s vertical (1080×1920) promo.
+<!-- Source of assets/video/fulki-promo-*.mp4, a 20 s vertical (1080×1920) promo.
      The page is a pure function of time: window.render(t) draws the frame at t seconds.
      Render with: node tools/promo-video/render_promo.mjs   (?lang=en|it picks the copy) -->
 <html lang="en">
@@ -128,7 +128,7 @@ const L = COPY[lang];
 document.documentElement.lang = lang;
 
 // ---------- timeline ----------
-const T = { cuts: [1.0, 4.4, 7.8, 11.2], end: 15 };
+const T = { cuts: [2.4, 5.8, 9.2, 12.6], end: 20 };
 const C = T.cuts;
 const SCENES = [
   // two sets of departures per region; the board flips to the second set partway through the scene
@@ -313,12 +313,12 @@ $("outSub").textContent = L.sub;
 
 // outro: F U L K I flip in one after another, then the plane lands in the last flap
 const PLANE = '<svg viewBox="0 0 24 24"><g transform="rotate(45 12 12)"><path fill="#ea580c" stroke="#ea580c" stroke-width="1" stroke-linejoin="round" d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></g></svg>';
-const LOGO = ["F", "U", "L", "K", "I", "✈"], FLIP = 0.075, STEP = 0.08;
+const LOGO = ["F", "U", "L", "K", "I", "✈"], FLIP = 0.09, STEP = 0.1;
 const glyph = ch => ch === "✈" ? PLANE : ch;
 const LOGO_FLAPS = LOGO.map((target, k) => {
   const box = document.createElement("div"); box.className = "fc"; $("logoFlaps").appendChild(box);
   const part = cls => { const h = document.createElement("div"); h.className = "half " + cls; h.appendChild(document.createElement("span")); box.appendChild(h); return h; };
-  const start = C[3] + 0.15 + k * 0.13, n = 3 + k, seq = [[-1, " "]];
+  const start = C[3] + 0.3 + k * 0.22, n = 4 + k, seq = [[-1, " "]];
   for (let j = 0; j < n; j++) seq.push([start + j * STEP, "ABCDEFGHJKLMNOPRSTUVWXYZ"[Math.floor(hash(k, j, 5) * 24)]]);
   seq.push([start + n * STEP, target]);
   return { t: part("t"), b: part("b"), ft: part("t ft"), fb: part("b fb"), seq };
@@ -434,11 +434,11 @@ window.render = function (t) {
   } else { $("plane").setAttribute("opacity", 0); $("trail").setAttribute("opacity", 0); }
 
   // intro
-  const iIn = backOut(prog(t, 0, 0.35)), iOut = easeIn(prog(t, C[0] - 0.28, C[0] + 0.05));
-  setT("intro", 0, -iOut * 160, Math.min(prog(t, 0, 0.2), 1 - iOut));
-  $("introIcon").style.transform = `scale(${0.6 + 0.4 * iIn}) rotateX(${(1 - prog(t, 0, 0.3)) * 80}deg)`;
-  $("introText").style.transform = `translateY(${(1 - easeOut(prog(t, 0.1, 0.45))) * 40}px)`;
-  $("introText").style.opacity = prog(t, 0.1, 0.35);
+  const iIn = backOut(prog(t, 0.1, 0.6)), iOut = easeIn(prog(t, C[0] - 0.3, C[0] + 0.05));
+  setT("intro", 0, -iOut * 160, Math.min(prog(t, 0, 0.25), 1 - iOut), 1 + 0.05 * easeInOut(prog(t, 0.6, C[0])));
+  $("introIcon").style.transform = `scale(${0.6 + 0.4 * iIn}) rotateX(${(1 - easeOut(prog(t, 0.1, 0.55))) * 90}deg)`;
+  $("introText").style.transform = `translateY(${(1 - easeOut(prog(t, 0.55, 1.05))) * 50}px)`;
+  $("introText").style.opacity = prog(t, 0.55, 0.9);
 
   // brand chip
   setT("brand", 0, (1 - easeOut(prog(t, C[0] - 0.15, C[0] + 0.25))) * -30, prog(t, C[0] - 0.15, C[0] + 0.2) * (1 - prog(t, C[3] - 0.2, C[3] + 0.1)));
@@ -475,9 +475,9 @@ window.render = function (t) {
   $("logoFlaps").lastChild.style.transform = `translateY(${land > 0 ? -14 * Math.sin(Math.min(1, land / 0.25) * Math.PI) : 0}px)`;
   $("outTrail").style.transform = `scaleX(${easeOut(prog(land, 0, 0.4))})`;
   $("outTrail").style.opacity = prog(land, 0, 0.1);
-  for (const [id, a0] of [["outTT", 0.1], ["outTag", 0.3], ["outSub", 0.45], ["outPill", 0.55], ["outUrl", 0.65]]) {
-    $(id).style.opacity = prog(land, a0, a0 + 0.25);
-    $(id).style.transform = `translateY(${(1 - easeOut(prog(land, a0, a0 + 0.35))) * 40}px)` + (id === "outPill" ? ` scale(${1 + 0.03 * Math.sin(Math.max(0, land - 1) * 5)})` : "");
+  for (const [id, a0] of [["outTT", 0.15], ["outTag", 0.6], ["outSub", 1.0], ["outPill", 1.35], ["outUrl", 1.6]]) {
+    $(id).style.opacity = prog(land, a0, a0 + 0.35);
+    $(id).style.transform = `translateY(${(1 - easeOut(prog(land, a0, a0 + 0.5))) * 40}px)` + (id === "outPill" ? ` scale(${1 + 0.03 * Math.sin(Math.max(0, land - 1) * 5)})` : "");
   }
   return flipping;
 };
