@@ -10,6 +10,11 @@ middle scenes their drive. The voices climb as FULKI flips in, land on the tonic
 and fade out under the contact details.
 
 Usage: python3 make_audio.py cues.json out.wav [variant]
+  Open voice, simple and low in the mix:
+  mawwal        Middle Eastern: one open voice on "aa"/"ey" in maqam Hijaz, over a soft low "oo"
+  callresponse  African: a lead calls "e-o-e" and a small group answers in harmony, on a pentatonic scale
+  raga          South Asian: a raga alaap in Raag Yaman on open "aa", gliding between notes over a soft Sa-Pa
+  Hummed or more ornate:
   alaap   South Asian free-voice humming, like a raga alaap or a Bengali bhatiyali: one voice in free
           rhythm on a pentatonic scale (Sa Re Ga Pa Dha), gliding slowly between notes over a hummed
           Sa-Pa drone (default)
@@ -44,7 +49,8 @@ fx_send = np.zeros((n, 2))
 # scale degrees (+ octaves) in semitones above the tonic D
 SCALE = {"hijaz": [0, 1, 4, 5, 7, 8, 10], "bayati": [0, 1.5, 3, 5, 7, 8, 10], "alaap": [0, 2, 4, 7, 9],
          # makam Hüseyni in Turkish (53-comma) tuning: the second sits 8 commas up, between E-flat and E
-         "uzunhava": [0, 1.81, 2.94, 4.98, 7.02, 9.06, 9.96]}[VARIANT]
+         "uzunhava": [0, 1.81, 2.94, 4.98, 7.02, 9.06, 9.96],
+         "mawwal": [0, 1, 4, 5, 7, 8, 10], "callresponse": [0, 2, 4, 7, 9], "raga": [0, 2, 4, 6, 7, 9, 11]}[VARIANT]
 TONIC = 50  # D3
 
 
@@ -105,6 +111,35 @@ UZUN_HAVA = {
     "me": [(6, 0.3, "a"), (7, 1.3, "girtlak"), (6, 0.35), (5, 0.35), (4, 0.4), (5, 0.5, "e"), (None, 0.2)],
     "climb": [(5, 0.45, "a"), (6, 0.45, "a")],  # then the octave holds, open, until the plane lands
     "finale": [(8, 0.35, "a"), (7, 0.9, "a", "girtlak"), (6, 0.3), (5, 0.3), (4, 0.6), (3, 0.3), (2, 0.3), (1, 0.45, "o")],
+}
+
+
+# Middle Eastern mawwal (maqam Hijaz): plain, unhurried phrases on "aa" closing on "ey"
+MAWWAL = {
+    "intro": [(4, 1.1, "a"), (3, 0.35), (2, 0.55, "e")],
+    "asia": [(2, 0.4, "a"), (3, 0.4), (4, 1.2), (3, 0.4), (2, 0.8, "e"), (None, 0.2)],
+    "africa": [(4, 0.4, "a"), (5, 0.5), (4, 1.0), (3, 0.4), (2, 0.4), (1, 0.5, "e"), (None, 0.2)],
+    "me": [(5, 0.4, "a"), (6, 0.4), (7, 1.2), (6, 0.4), (5, 0.4), (4, 0.4, "e"), (None, 0.2)],
+    "climb": [(4, 0.5, "a"), (5, 0.5, "a")],
+    "finale": [(6, 0.4, "a"), (5, 0.4), (4, 0.8), (3, 0.4), (2, 0.4), (1, 0.5, "e")],
+}
+# South Asian alaap in Raag Yaman (Sa Re Ga Ma# Pa Dha Ni) on open "aa"
+RAGA = {
+    "intro": [(0, 0.9, "a"), (-1, 0.35), (0, 0.75)],
+    "asia": [(0, 0.3, "a"), (1, 0.4), (2, 1.2), (1, 0.4), (0, 0.9), (None, 0.2)],
+    "africa": [(2, 0.35, "a"), (3, 0.4), (4, 1.2), (3, 0.35), (2, 0.9, "e"), (None, 0.2)],
+    "me": [(4, 0.4, "a"), (5, 0.4), (7, 1.3, "gamak"), (6, 0.4), (4, 0.7), (None, 0.2)],
+    "climb": [(4, 0.5, "a"), (6, 0.5, "a")],
+    "finale": [(6, 0.4, "a"), (4, 0.9), (3, 0.35), (2, 0.6), (1, 0.4)],
+}
+# African call and response (major pentatonic): per section a call of 4 eighths, then the group's answer
+CALLS = {
+    "intro": ([(0, 1, "e"), (2, 1, "o"), (3, 2, "e")], None),
+    "asia": ([(2, 1, "e"), (3, 1, "o"), (4, 2, "e")], [(3, 1, "a"), (2, 1, "o"), (0, 2, "e")]),
+    "africa": ([(4, 1, "e"), (3, 1, "o"), (4, 2, "a")], [(3, 1, "e"), (2, 1, "o"), (1, 2, "a")]),
+    "me": ([(5, 1, "e"), (4, 1, "o"), (5, 2, "a")], [(4, 1, "a"), (3, 1, "o"), (2, 2, "e")]),
+    "climb": ([(3, 1, "e"), (4, 1, "o")], None),  # then the call holds its top note until the plane lands
+    "finale": [(4, 1, "a"), (3, 1, "o"), (2, 1, "e"), (1, 1, "o")],  # everyone together, then home
 }
 
 
@@ -333,8 +368,52 @@ def uzun_hava():
              vib=0.4, late=0.02 * k, breath=0.04, pan=-0.5 + 0.5 * k, gain=0.18, verb=0.85, vowel="u")
 
 
+def open_solo(line, top, drone, glide, vib, vib_rate, end_vowel):
+    """One open voice, kept simple: no doubles or answers, over a very soft low drone on "oo"."""
+    lead = free_timeline(line, top, ("a",))
+    lead[-1] = lead[-1][:3] + (end_vowel,)
+    sing(lead, 0, dur, vowel="a", vib=vib, vib_rate=vib_rate, glide=glide, breath=0.03, gain=1.0, verb=0.6)
+    for at in (0.3, c0, c1, c2, c3):
+        inhale(at, 0.04)
+    for k, (deg, sh) in enumerate(drone):
+        sing([(0.0 if k == 0 else c0, dur - 0.1, deg)], 0 if k == 0 else c0, dur, shift=sh + 0.07 * k, size=1.08,
+             vib=0.1, breath=0.03, pan=(-0.35, 0.35, 0)[k % 3], gain=0.2 if k == 0 else 0.13, verb=0.7, vowel="u")
+
+
+def call_and_response():
+    """A lead calls, a small group answers in harmony (a third/fourth below and an octave below)."""
+    def lay(start, notes, unit=U, gap=0.05):
+        out, s_ = [], start
+        for d, ln, *v in notes:
+            out.append((s_, s_ + ln * unit - gap, d, *v)); s_ += ln * unit
+        return out, s_
+
+    calls, answers = [], []
+    c, end = lay(0.4, CALLS["intro"][0]); calls += c
+    for a, key in zip((c0, c1, c2), ("asia", "africa", "me")):
+        c, mid = lay(a, CALLS[key][0]); calls += c
+        r, _ = lay(mid, CALLS[key][1]); answers += r
+    c, mid = lay(c3, CALLS["climb"][0]); calls += c
+    calls.append((mid, land - 0.03, 5, "e"))
+    together, s_ = lay(land, CALLS["finale"])
+    together.append((s_, dur - 0.2, 0, "a"))
+    sing(calls + together, 0, dur, vowel="e", vib=0.6, vib_rate=5.6, glide=30, breath=0.03, gain=1.0, verb=0.5)
+    for at in (0.4, c0, c1, c2, c3):
+        inhale(at, 0.04)
+    group = answers + together
+    for k, (off, size, pan, g) in enumerate(((0, 1.03, -0.5, 0.45), (-2, 1.08, 0.5, 0.4), (-5, 1.12, 0.0, 0.3))):
+        notes = [(s0 + 0.01 * k, e0 + 0.01 * k, d + off, *v) for s0, e0, d, *v in group]
+        sing(notes, c0, dur, vowel="o", size=size, vib=0.4, vib_rate=5.3, glide=30, breath=0.04, pan=pan, gain=g, verb=0.6)
+
+
 if VARIANT == "alaap":
     alaap()
+elif VARIANT == "mawwal":
+    open_solo(MAWWAL, 7, [(0, -12), (4, -12)], glide=60, vib=1.0, vib_rate=5.5, end_vowel="a")
+elif VARIANT == "raga":
+    open_solo(RAGA, 7, [(0, -12), (4, -12)], glide=150, vib=0.35, vib_rate=5.0, end_vowel="a")
+elif VARIANT == "callresponse":
+    call_and_response()
 elif VARIANT == "uzunhava":
     uzun_hava()
 full = VARIANT == "hijaz"
@@ -502,10 +581,11 @@ put(ding(midi_hz * 1.5), cta + 0.22, 0.15, 0.28, 0.35, fx=True)
 
 # ---------- master ----------
 fade = (np.minimum(1, t / 0.3) * np.minimum(1, (dur - t) / 1.2))[:, None]
+VOICE_LEVEL = -27 if VARIANT in ("mawwal", "callresponse", "raga") else -23  # dBFS RMS: the open voices sit lower still
 voices = dry + reverb(send) * 0.8
-voices *= 10 ** (-23 / 20) / np.sqrt((voices**2).mean())  # the nasheed sits low, in the background
+voices *= 10 ** (VOICE_LEVEL / 20) / np.sqrt((voices**2).mean())  # the voices sit low, in the background
 amb_active = scene_env(c0, c3) > 0.5
-amb *= 10 ** (-28 / 20) / np.sqrt((amb[amb_active] ** 2).mean())  # the soundscapes sit below the nasheed
+amb *= 10 ** ((VOICE_LEVEL - 5) / 20) / np.sqrt((amb[amb_active] ** 2).mean())  # the soundscapes sit below the voices
 effects = fx_dry + reverb(fx_send, length=1.4) * 0.6
 mix = (voices + amb + effects) * fade
 mix *= 10 ** (-16 / 20) / np.sqrt((mix**2).mean())  # overall loudness, about -16 dBFS RMS before the limiter
