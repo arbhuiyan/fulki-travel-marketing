@@ -16,12 +16,12 @@ Usage: python3 make_audio.py cues.json out.wav [variant]
   raga          South Asian: a raga alaap in Raag Yaman on open "aa", gliding between notes over a soft Sa-Pa
   Other backgrounds:
   airport       no voice: an airport terminal instead (hall hum, crowd murmur, footsteps, suitcases
-                rolling past, the announcement chime, a jet taking off as the logo lands)
+                rolling past, the announcement chime, a jet taking off as the logo lands) (default)
   none          no background at all: only the regional soundscapes and the sound effects
   Hummed or more ornate:
   alaap   South Asian free-voice humming, like a raga alaap or a Bengali bhatiyali: one voice in free
           rhythm on a pentatonic scale (Sa Re Ga Pa Dha), gliding slowly between notes over a hummed
-          Sa-Pa drone (default)
+          Sa-Pa drone
   uzunhava  Turkish free voice, like an Anatolian uzun hava: one open voice on "aa", "ey", "of", in
           makam Hüseyni with its comma-flat second, wide fast vibrato and gırtlak throat ornaments,
           over a soft low "oo" from a few voices
@@ -39,7 +39,7 @@ import numpy as np
 SR = 44100
 CR = 1000  # control rate for pitch and loudness curves
 cues = json.load(open(sys.argv[1]))
-VARIANT = sys.argv[3] if len(sys.argv) > 3 else "alaap"
+VARIANT = sys.argv[3] if len(sys.argv) > 3 else "airport"
 rng = np.random.default_rng(31)
 fps, dur, cuts, land = cues["fps"], cues["seconds"], cues["cuts"], cues["land"]
 n, nc = int(SR * dur), int(CR * dur)

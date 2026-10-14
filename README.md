@@ -22,10 +22,11 @@ The link-preview image `assets/og-image.png` is drawn from `tools/og-image.html`
 
 `assets/video/fulki-promo-en.mp4` and `fulki-promo-it.mp4` are 20-second vertical (1080×1920) promos for
 Asia (with Dhaka's Shaheed Minar), Africa and the Middle East, drawn from `tools/promo-video/promo.html`.
-The soundtrack, synthesized by `make_audio.py`, is a hummed melody (voices only, no instruments) in the
-background, a low natural soundscape for each region beneath it, and on top split-flap clacks, a low swipe on
-each scene change and a phone call-to-action at the end;
-pick the background with `--sound alaap|mawwal|callresponse|raga|airport|none|uzunhava|hijaz|bayati` (default `alaap`, a South Asian free-voice humming).
+The soundtrack, synthesized by `make_audio.py`, is an airport terminal in the background (hall hum, crowd
+murmur, footsteps, rolling suitcases, the announcement chime, a jet taking off as the logo lands), a low natural
+soundscape for each region beneath it, and on top split-flap clacks, a low swipe on each scene change and a
+phone call-to-action at the end. Other backgrounds (hummed or sung melodies, or none) are listed in
+`make_audio.py`; pick one with `--sound` (default `airport`).
 
 ## Contact
 

@@ -15,7 +15,7 @@ const FPS = 30, W = 1080, H = 1920;
 
 const args = process.argv.slice(2);
 const soundAt = args.indexOf("--sound");
-const sound = soundAt >= 0 ? args.splice(soundAt, 2)[1] : "alaap";
+const sound = soundAt >= 0 ? args.splice(soundAt, 2)[1] : "airport";
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: W, height: H } });
 
