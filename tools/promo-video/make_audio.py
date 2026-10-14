@@ -13,6 +13,9 @@ Usage: python3 make_audio.py cues.json out.wav [variant]
   alaap   South Asian free-voice humming, like a raga alaap or a Bengali bhatiyali: one voice in free
           rhythm on a pentatonic scale (Sa Re Ga Pa Dha), gliding slowly between notes over a hummed
           Sa-Pa drone (default)
+  uzunhava  Turkish free voice, like an Anatolian uzun hava: one open voice on "aa", "ey", "of", in
+          makam Hüseyni with its comma-flat second, wide fast vibrato and gırtlak throat ornaments,
+          over a soft low "oo" from a few voices
   hijaz   nasheed in maqam Hijaz on D: lead, group, drone and a soft "dum" pulse
   bayati  nasheed in maqam Bayati on D, with its quarter-tone second: softer and more devotional
 cues.json is written by render_promo.mjs: frame rate, length, scene cuts, logo landing time,
@@ -39,7 +42,9 @@ fx_dry = np.zeros((n, 2))  # sound effects
 fx_send = np.zeros((n, 2))
 
 # scale degrees (+ octaves) in semitones above the tonic D
-SCALE = {"hijaz": [0, 1, 4, 5, 7, 8, 10], "bayati": [0, 1.5, 3, 5, 7, 8, 10], "alaap": [0, 2, 4, 7, 9]}[VARIANT]
+SCALE = {"hijaz": [0, 1, 4, 5, 7, 8, 10], "bayati": [0, 1.5, 3, 5, 7, 8, 10], "alaap": [0, 2, 4, 7, 9],
+         # makam Hüseyni in Turkish (53-comma) tuning: the second sits 8 commas up, between E-flat and E
+         "uzunhava": [0, 1.81, 2.94, 4.98, 7.02, 9.06, 9.96]}[VARIANT]
 TONIC = 50  # D3
 
 
@@ -92,6 +97,35 @@ ALAAP = {
 }
 
 
+# the uzun hava: free rhythm, starting high and falling, on open vowels; seconds from each section's start
+UZUN_HAVA = {
+    "intro": [(4, 1.15, "a", "girtlak"), (5, 0.25), (4, 0.6, "e")],
+    "asia": [(5, 0.35, "a"), (4, 0.3), (3, 1.1, "girtlak"), (2, 0.35), (1, 0.4), (2, 0.7, "e"), (None, 0.2)],
+    "africa": [(3, 0.3, "a"), (4, 0.4), (5, 1.2, "girtlak"), (4, 0.35), (3, 0.35), (4, 0.6, "o"), (None, 0.2)],
+    "me": [(6, 0.3, "a"), (7, 1.3, "girtlak"), (6, 0.35), (5, 0.35), (4, 0.4), (5, 0.5, "e"), (None, 0.2)],
+    "climb": [(5, 0.45, "a"), (6, 0.45, "a")],  # then the octave holds, open, until the plane lands
+    "finale": [(8, 0.35, "a"), (7, 0.9, "a", "girtlak"), (6, 0.3), (5, 0.3), (4, 0.6), (3, 0.3), (2, 0.3), (1, 0.45, "o")],
+}
+
+
+def free_timeline(line, top, top_mark=()):
+    """Lay a free-rhythm line over the sections; `top` is the note held until the plane lands."""
+    out = []
+
+    def run(start, notes):
+        s = start
+        for d, ln, *orn in notes:
+            out.append((s, s + ln, d, *orn)); s += ln
+        return s
+
+    run(0.3, line["intro"])
+    for a, key in zip((c0, c1, c2), ("asia", "africa", "me")):
+        run(a, line[key])
+    out.append((run(c3, line["climb"]), land, top, *top_mark))
+    out.append((run(land, line["finale"]), dur - 0.2, 0, *top_mark))
+    return out
+
+
 def alaap_timeline():
     out = []
 
@@ -134,14 +168,31 @@ def hum_spectrum(f, size=1.0):
     return (resonance(f, 255, 110) * dip + 0.12 * resonance(f, 2200, 320)) / resonance(255.0, 255, 110)
 
 
-def sing(notes, a, b, shift=0.0, size=1.0, vib=1.0, late=0.0, breath=0.02, glide=40, pan=0.0, gain=1.0, verb=0.5):
-    """Render one hummed voice over a..b seconds following notes [(start, end, degree)]."""
+# open vowels for singing (adult male): formant frequencies and bandwidths in Hz
+VOWELS = {
+    "a": ((730, 1090, 2440, 3300), (90, 110, 160, 250)),
+    "e": ((530, 1840, 2480, 3300), (70, 100, 160, 250)),
+    "o": ((570, 840, 2410, 3300), (80, 90, 160, 250)),
+    "u": ((320, 870, 2240, 3300), (70, 90, 150, 250)),
+}
+VOWEL_PEAK = max(np.prod([resonance(f, fc, bw) for fc, bw in zip(*VOWELS["a"])], 0) for f in np.arange(100, 4000, 5.0))
+
+
+def sing(notes, a, b, shift=0.0, size=1.0, vib=1.0, late=0.0, breath=0.02, glide=40, pan=0.0, gain=1.0, verb=0.5,
+         vowel=None, vib_rate=5.2):
+    """Render one voice over a..b seconds following notes [(start, end, degree, *marks)].
+    With vowel=None the voice hums; otherwise it sings open vowels ("a", "e", "o", "u"), and a note can
+    name its own vowel among its marks. Other marks: "gamak" (a slow wide shake) and "girtlak"
+    (Turkish throat ornament: quick catches and flips to the note above, partway through the note)."""
     pitch = np.full(nc, np.nan)
     gate = np.zeros(nc)
     onset = np.zeros(nc)  # seconds since the current note began
     length = np.zeros(nc)
     changes = np.zeros(nc)
     gamak = np.zeros(nc)
+    flips = np.zeros(nc)
+    catch = np.ones(nc)
+    vowel_at = np.full(nc, vowel or "a", dtype="<U1")
     prev = None
     for s, e, d, *orn in notes:
         s, e = s + late, e + late
@@ -156,25 +207,35 @@ def sing(notes, a, b, shift=0.0, size=1.0, vib=1.0, late=0.0, breath=0.02, glide
         onset[j0:j1] = tc[j0:j1] - s
         length[j0:j1] = e - s
         changes[j0] = 1
-        if orn and orn[0] == "gamak":  # a slow, wide shake that grows through the note
+        if "gamak" in orn:  # a slow, wide shake that grows through the note
             x = tc[j0:j1] - s
             gamak[j0:j1] = 0.4 * np.sin(2 * np.pi * 3.0 * x) * np.clip((x - 0.15) / 0.4, 0, 1)
+        if "girtlak" in orn:  # four quick flips up and back, each with a little catch in the throat
+            up = semis(d + 1) - semis(d)
+            for k in range(4):
+                f0_ = j0 + int((0.28 + k * 0.11) * CR)
+                if f0_ + int(0.11 * CR) < j1:
+                    flips[f0_ : f0_ + int(0.055 * CR)] = up
+                    catch[f0_ : f0_ + int(0.02 * CR)] = 0.6
+        for v in orn:
+            if v in VOWELS:
+                vowel_at[j0:j1] = v
         prev = d
     # hold the last pitch through breaths, so slides start where the voice left off
     idx = np.where(~np.isnan(pitch), np.arange(nc), 0)
     np.maximum.accumulate(idx, out=idx)
     pitch = pitch[idx]
     pitch[np.isnan(pitch)] = TONIC + shift
-    pitch = smooth(pitch, glide / 2)
+    pitch = smooth(pitch, glide / 2) + smooth(flips, 12)
     # vibrato grows in on held notes; a slow drift keeps the intonation human
     depth = 0.28 * vib * np.clip((onset - 0.2) / 0.35, 0, 1) * (length > 0.4)
-    rate = 5.2 + 0.3 * wobble(400)
+    rate = vib_rate + 0.3 * wobble(400)
     pitch += depth * np.sin(2 * np.pi * np.cumsum(rate) / CR + rng.random() * 6) + 0.04 * wobble(80) + gamak
     # loudness: soft onsets, a slight dip at each new note, a gentle swell through the note, shimmer
     dip = smooth(changes, 25)
     loud = smooth(gate, 35) * (1 - 0.12 * dip / (dip.max() + 1e-9))
     loud *= 0.9 + 0.1 * np.sin(np.pi * np.clip(onset / np.maximum(length, 0.1), 0, 1))
-    loud *= 1 + 0.04 * wobble(50)
+    loud *= (1 + 0.04 * wobble(50)) * smooth(catch, 8)
     # additive synthesis at audio rate, over the active span only
     s0, s1 = int(a * SR), min(n, int(b * SR))
     ta = t[s0:s1]
@@ -182,14 +243,25 @@ def sing(notes, a, b, shift=0.0, size=1.0, vib=1.0, late=0.0, breath=0.02, glide
     amp = np.clip(np.interp(ta, tc, loud), 0, None)
     phase = 2 * np.pi * np.cumsum(f0) / SR
     out = np.zeros(len(ta))
+    if vowel:
+        # formants glide between vowels; the voice gets brighter as it gets louder
+        tracks = [smooth(np.array([VOWELS[v][part][i] for v in vowel_at], float), 60) for part in (0, 1) for i in range(4)]
+        fm = [np.interp(ta, tc, tr) * size for tr in tracks[:4]]
+        bw = [np.interp(ta, tc, tr) for tr in tracks[4:]]
+        tilt = 1.3 - 0.4 * np.clip(amp, 0, 1)
     for k in range(1, 80):
         fk = k * f0
         if fk.min() > 5500:
             break
-        out += hum_spectrum(fk, size) * k**-1.1 * np.sin(k * phase + k * 0.7) * (fk < 6000)
-    # breath through the nose
+        if vowel:
+            env = np.prod([resonance(fk, fc, b_) for fc, b_ in zip(fm, bw)], 0) / VOWEL_PEAK
+            out += env * k ** -tilt * np.sin(k * phase + k * 0.7) * (fk < 6000)
+        else:
+            out += hum_spectrum(fk, size) * k**-1.1 * np.sin(k * phase + k * 0.7) * (fk < 6000)
+    # breath: through the nose when humming, through the open mouth when singing
     spec = np.fft.rfft(rng.normal(0, 1, len(ta)))
-    br = np.fft.irfft(spec * np.exp(-((np.fft.rfftfreq(len(ta), 1 / SR) - 600) / 900) ** 2), len(ta))
+    centre, spread = (1400, 1500) if vowel else (600, 900)
+    br = np.fft.irfft(spec * np.exp(-((np.fft.rfftfreq(len(ta), 1 / SR) - centre) / spread) ** 2), len(ta))
     out = out / 3 + breath * br / (np.abs(br).max() + 1e-9)
     put(out * amp, a, pan, gain, verb)
 
@@ -246,12 +318,29 @@ def alaap():
              vib=0.3, late=0.02 * k, breath=0.05, pan=-0.5 + 0.5 * k, gain=0.24, verb=0.85)
 
 
+def uzun_hava():
+    """One open, free voice in the Anatolian uzun hava style, over a soft low "oo" from a few voices."""
+    lead = free_timeline(UZUN_HAVA, 7, ("a",))
+    lead[-1] = lead[-1][:3] + ("o",)  # the last long tonic closes on "o"
+    sing(lead, 0, dur, vowel="a", vib=1.8, vib_rate=6.2, glide=35, breath=0.035, gain=1.0, verb=0.6)
+    for at in (0.3, c0, c1, c2, c3):
+        inhale(at, 0.05)
+    for sh, size, pan, g in ((-12, 1.08, -0.35, 0.22), (-11.93, 1.03, 0.35, 0.2)):  # tonic below, on "oo"
+        sing([(0.0, dur - 0.1, 0)], 0, dur, shift=sh, size=size, vib=0.15, breath=0.03, pan=pan, gain=g, verb=0.7, vowel="u")
+    sing([(c0, dur - 0.1, -3)], c0, dur, size=1.05, vib=0.15, breath=0.03, gain=0.14, verb=0.7, vowel="u")  # the fifth below
+    for k, deg in enumerate((-7, 0, 4)):  # at the landing the low voices open to the tonic chord, still on "oo"
+        sing([(land, dur - 0.2, deg)], land - 0.02, dur, shift=0.05 * (-1) ** k, size=1.0 + 0.04 * k,
+             vib=0.4, late=0.02 * k, breath=0.04, pan=-0.5 + 0.5 * k, gain=0.18, verb=0.85, vowel="u")
+
+
 if VARIANT == "alaap":
     alaap()
-lead = timeline() if VARIANT != "alaap" else []
+elif VARIANT == "uzunhava":
+    uzun_hava()
 full = VARIANT == "hijaz"
 
-if VARIANT != "alaap":
+if VARIANT in ("hijaz", "bayati"):
+    lead = timeline()
     # lead voice, with a close double for body
     sing(lead, 0, dur, vib=1.0, breath=0.025, gain=1.0, verb=0.55)
     sing(lead, 0, dur, shift=0.06, size=0.96, vib=0.6, late=0.018, breath=0.03, pan=0.15, gain=0.35, verb=0.7)

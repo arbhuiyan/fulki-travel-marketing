@@ -25,7 +25,7 @@ Asia (with Dhaka's Shaheed Minar), Africa and the Middle East, drawn from `tools
 The soundtrack, synthesized by `make_audio.py`, is a hummed melody (voices only, no instruments) in the
 background, a low natural soundscape for each region beneath it, and on top split-flap clacks, a low swipe on
 each scene change and a phone call-to-action at the end;
-pick the melody with `--sound alaap|hijaz|bayati` (default `alaap`, a South Asian free-voice humming).
+pick the melody with `--sound alaap|uzunhava|hijaz|bayati` (default `alaap`, a South Asian free-voice humming).
 
 ## Contact
 
