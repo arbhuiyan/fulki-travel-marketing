@@ -1,6 +1,6 @@
 """Synthesize the promo soundtrack: a hummed melody (voices only, no instruments) in the
-background, a low natural soundscape for each region beneath it (monsoon rain and river for Asia,
-wind through dry grass for Africa, desert wind and sand for the Middle East), and sound effects on
+background, a low natural soundscape for each scene beneath it (chosen by the promo: monsoon rain and
+river, savanna wind, desert wind and sand, tea-garden breeze, or waves on the beach), and sound effects on
 top: dry mechanical clacks for every card that flips, a low swipe on every scene change, and a
 phone call-to-action when the WhatsApp number appears.
 
@@ -570,19 +570,52 @@ def soundscape(make, a, b, gain):
         amb[:, ch] += make() * env * gain
 
 
-# Asia: monsoon rain on leaves and a river running low beside it
-soundscape(lambda: band_noise(n, 250, 2200, 1.2) * 0.6 + band_noise(n, 80, 600, 1.5) * gusts(7, 0.5), c0, c1, 1.0)
-for _ in range(int((c1 - c0) * 70)):  # heavier drops landing nearby, softened
-    s0 = rng.uniform(c0, c1)
-    d = band_noise(int(0.03 * SR), 300, 1800, 1.0) * np.exp(-np.arange(int(0.03 * SR)) / SR * 140)
-    i = int(s0 * SR)
-    seg = d[: n - i] * rng.uniform(0.2, 0.6) * scene_env(c0, c1)[i]
-    amb[i : i + len(seg), int(rng.random() < 0.5)] += seg
-# Africa: warm wind across the savanna, dry grass stirring in it
-soundscape(lambda: band_noise(n, 50, 650, 1.6) * gusts(0.5, 0.25) + band_noise(n, 700, 2400, 0.8) * gusts(1.3, 0.1) ** 2 * 0.5, c1, c2, 1.6)
-# Middle East: desert wind with a hollow low moan and fine sand drifting
-soundscape(lambda: band_noise(n, 40, 500, 1.6) * gusts(0.4, 0.3) + band_noise(n, 280, 520, 0.5) * gusts(0.7, 0.0) ** 3 * 0.6
-           + band_noise(n, 1200, 3000, 0.6) * gusts(0.9, 0.1) ** 2 * 0.25, c2, c3, 2.0)
+def monsoon(a, b, gain=1.0):
+    """Monsoon rain on leaves and a river running low beside it (South Asia, Dhaka)."""
+    soundscape(lambda: band_noise(n, 250, 2200, 1.2) * 0.6 + band_noise(n, 80, 600, 1.5) * gusts(7, 0.5), a, b, gain)
+    for _ in range(int((b - a) * 70)):  # heavier drops landing nearby, softened
+        s0 = rng.uniform(a, b)
+        d = band_noise(int(0.03 * SR), 300, 1800, 1.0) * np.exp(-np.arange(int(0.03 * SR)) / SR * 140)
+        i = int(s0 * SR)
+        seg = d[: n - i] * rng.uniform(0.2, 0.6) * scene_env(a, b)[i] * gain
+        amb[i : i + len(seg), int(rng.random() < 0.5)] += seg
+
+
+def savanna(a, b, gain=1.6):
+    """Warm wind across the savanna, dry grass stirring in it."""
+    soundscape(lambda: band_noise(n, 50, 650, 1.6) * gusts(0.5, 0.25) + band_noise(n, 700, 2400, 0.8) * gusts(1.3, 0.1) ** 2 * 0.5, a, b, gain)
+
+
+def desert(a, b, gain=2.0):
+    """Desert wind with a hollow low moan and fine sand drifting."""
+    soundscape(lambda: band_noise(n, 40, 500, 1.6) * gusts(0.4, 0.3) + band_noise(n, 280, 520, 0.5) * gusts(0.7, 0.0) ** 3 * 0.6
+               + band_noise(n, 1200, 3000, 0.6) * gusts(0.9, 0.1) ** 2 * 0.25, a, b, gain)
+
+
+def tea_garden(a, b, gain=1.6):
+    """A morning breeze through tea bushes and shade trees on the hills, a stream running below (Sylhet)."""
+    soundscape(lambda: band_noise(n, 500, 2200, 0.9) * gusts(0.8, 0.2) ** 1.5 * 0.6 + band_noise(n, 50, 400, 1.6) * gusts(0.4, 0.3) * 0.5
+               + band_noise(n, 180, 1300, 1.1) * gusts(9, 0.45) * 0.45, a, b, gain)
+
+
+def sea(a, b, gain=1.4):
+    """Waves rolling onto a long beach, one about every two seconds, under a steady sea breeze (Cox's Bazar)."""
+    soundscape(lambda: band_noise(n, 40, 450, 1.6) * gusts(0.3, 0.4) * 0.5, a, b, gain)
+    for k, at in enumerate(np.arange(a - 0.8, b, 2.1)):
+        ln = int(3.0 * SR)
+        x = np.arange(ln) / SR
+        swell = np.clip(x / 0.9, 0, 1) ** 2 * np.exp(-np.clip(x - 0.9, 0, None) * 1.3)
+        wash = np.clip(x - 0.9, 0, None) * np.exp(-np.clip(x - 0.9, 0, None) * 2.2) * 2.4
+        wave_ = band_noise(ln, 60, 900, 1.4) * swell + band_noise(ln, 700, 2400, 0.9) * (0.3 * swell + wash) * 0.6
+        i = int(max(0, at) * SR)
+        seg = wave_[: n - i] * scene_env(a, b)[i : i + len(wave_[: n - i])] * gain * 0.8
+        amb[i : i + len(seg), 0] += seg * (0.8 if k % 2 else 1.0)
+        amb[i : i + len(seg), 1] += seg * (1.0 if k % 2 else 0.8)
+
+
+SOUNDSCAPES = {"monsoon": monsoon, "savanna": savanna, "desert": desert, "tea": tea_garden, "sea": sea}
+for (a, b), name in zip(((c0, c1), (c1, c2), (c2, c3)), cues.get("sounds") or ["monsoon", "savanna", "desert"]):
+    SOUNDSCAPES[name](a, b)
 
 # a low swipe on every scene change, moving left to right with the plane
 for c in cuts:

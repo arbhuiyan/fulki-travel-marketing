@@ -1,7 +1,10 @@
-// Render tools/promo-video/promo.html to assets/video/fulki-promo-<lang>.mp4 (1080×1920, 30 fps, 15 s).
-// Run: node tools/promo-video/render_promo.mjs [--sound airport+hijaz|airport|alaap|mawwal|callresponse|raga|none|uzunhava|hijaz|bayati] [en|it ...]
-//      (needs Playwright with Chromium, ffmpeg, python3 + numpy; the soundtrack variants are described in make_audio.py)
-//      node tools/promo-video/render_promo.mjs --stills en 1.5 4 8   (writes PNG stills to /tmp for checking a frame)
+// Render a promo (tools/promo-video/promo.html + promos/<name>.js) to assets/video (1080×1920, 30 fps, 20 s):
+//   regions    -> fulki-promo-<lang>.mp4
+//   any other  -> fulki-promo-<name>-<lang>.mp4
+// Run: node tools/promo-video/render_promo.mjs [--promo regions|bangladesh] [--sound <variant>] [en|it|bn ...]
+//      Languages and soundtrack default to the promo's own; soundtrack variants are described in make_audio.py.
+//      (needs Playwright with Chromium, ffmpeg, python3 + numpy)
+//      node tools/promo-video/render_promo.mjs [--promo name] --stills en 1.5 4 8   (PNG stills in /tmp, to check a frame)
 import { chromium } from "playwright";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -14,13 +17,15 @@ const root = path.resolve(here, "../..");
 const FPS = 30, W = 1080, H = 1920;
 
 const args = process.argv.slice(2);
-const soundAt = args.indexOf("--sound");
-const sound = soundAt >= 0 ? args.splice(soundAt, 2)[1] : "airport+hijaz";
+const option = name => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : null; };
+const promo = option("--promo") || "regions";
+const soundArg = option("--sound");
+const prefix = promo === "regions" ? "fulki-promo" : `fulki-promo-${promo}`;
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: W, height: H } });
 
 async function open(lang) {
-  await page.goto(pathToFileURL(path.join(here, "promo.html")).href + "?lang=" + lang);
+  await page.goto(pathToFileURL(path.join(here, "promo.html")).href + `?promo=${promo}&lang=${lang}`);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForFunction(() => [...document.images].every(i => i.complete));
 }
@@ -30,7 +35,7 @@ if (args[0] === "--stills") {
   await open(lang);
   for (const t of times) {
     await page.evaluate(t => render(t), Number(t));
-    const out = path.join(tmpdir(), `fulki-promo-${lang}-${t}.png`);
+    const out = path.join(tmpdir(), `${prefix}-${lang}-${t}.png`);
     await page.screenshot({ path: out });
     console.log("wrote", out);
   }
@@ -38,7 +43,9 @@ if (args[0] === "--stills") {
   process.exit(0);
 }
 
-const langs = args.length ? args : ["en", "it"];
+await open("en");
+const langs = args.length ? args : await page.evaluate(() => TIMELINE.langs);
+const sound = soundArg || await page.evaluate(() => TIMELINE.sound);
 mkdirSync(path.join(root, "assets/video"), { recursive: true });
 for (const lang of langs) {
   await open(lang);
@@ -60,11 +67,11 @@ for (const lang of langs) {
   await done;
 
   const cues = path.join(work, "cues.json"), audio = path.join(work, "audio.wav");
-  writeFileSync(cues, JSON.stringify({ fps: FPS, seconds, flaps, cuts: await page.evaluate(() => TIMELINE.cuts), land: await page.evaluate(() => LANDED),
+  writeFileSync(cues, JSON.stringify({ fps: FPS, seconds, flaps, cuts: await page.evaluate(() => TIMELINE.cuts), land: await page.evaluate(() => LANDED), sounds: await page.evaluate(() => TIMELINE.sounds),
     logoFlips: await page.evaluate(() => LOGO_FLAPS.flatMap(f => f.seq.slice(1).map(([at]) => at))) }));
   execFileSync("python3", [path.join(here, "make_audio.py"), cues, audio, sound], { stdio: "inherit" });
 
-  const out = path.join(root, `assets/video/fulki-promo-${lang}.mp4`);
+  const out = path.join(root, `assets/video/${prefix}-${lang}.mp4`);
   execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", video, "-i", audio, "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
     "-shortest", "-movflags", "+faststart", out], { stdio: "inherit" });
   rmSync(work, { recursive: true });
