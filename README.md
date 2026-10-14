@@ -22,9 +22,8 @@ The link-preview image `assets/og-image.png` is drawn from `tools/og-image.html`
 
 `assets/video/fulki-promo-en.mp4` and `fulki-promo-it.mp4` are 20-second vertical (1080×1920) promos for
 Asia (with Dhaka's Shaheed Minar), Africa and the Middle East, drawn from `tools/promo-video/promo.html`.
-The soundtrack is natural sound only (stone, water, sand, wood, wind, rain, thunder, waves), synthesized by
-`make_audio.py`; pick a variant with `--sound rhythm|monsoon|water|ocean` (default `rhythm`). Re-render both with
-`node tools/promo-video/render_promo.mjs` (needs Playwright, ffmpeg and Python with numpy).
+The soundtrack is a hummed nasheed, voices only (no instruments), synthesized by `make_audio.py`;
+pick the maqam with `--sound hijaz|bayati` (default `hijaz`).
 
 ## Contact
 
