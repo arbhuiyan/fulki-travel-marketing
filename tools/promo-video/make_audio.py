@@ -1,6 +1,8 @@
 """Synthesize the promo soundtrack: a hummed nasheed (voices only, no instruments) in the
-background, with sound effects on top: mechanical split-flap clacks for every card that flips,
-a low swipe on every scene change, and a phone call-to-action when the WhatsApp number appears.
+background, a low natural soundscape for each region beneath it (monsoon rain and river for Asia,
+wind through dry grass for Africa, desert wind and sand for the Middle East), and sound effects on
+top: dry mechanical clacks for every card that flips, a low swipe on every scene change, and a
+phone call-to-action when the WhatsApp number appears.
 
 A lead voice hums a maqam melody (with vibrato, slides and grace notes), a group of voices joins
 it scene by scene, a low hummed drone holds the tonic, and a soft hummed "dum" pulse gives the
@@ -233,20 +235,27 @@ for k, (octv, deg) in enumerate(chord):
          vib=0.5, late=0.01 * k, breath=0.05, pan=-0.6 + 0.4 * k, gain=0.28, verb=0.85)
 
 # ---------- sound effects ----------
+def band_noise(length, lo, hi, slope=1.0):
+    """Noise band-limited to lo..hi Hz with a 1/f**slope tilt (no pitch, just texture)."""
+    length = max(int(length), 2)
+    f = np.maximum(np.fft.rfftfreq(length, 1 / SR), 1)
+    spec = np.fft.rfft(rng.normal(0, 1, length)) * f ** (-slope / 2) / (1 + (lo / f) ** 4) / (1 + (f / hi) ** 4)
+    out = np.fft.irfft(spec, length)
+    return out / (np.abs(out).max() + 1e-9)
+
+
 def clack(size=1.0):
-    """One flap falling over: a sharp plastic snap, a very short ring from the card,
-    a soft knock from the frame, and a quieter second tap as it settles."""
+    """One flap falling over, made only of noise so nothing in it is pitched: a dry plastic snap,
+    a short rattle as the card hits its stop, and (for the big cards) a soft knock from the frame."""
     x = np.arange(int(0.05 * SR)) / SR
-    snap = rng.normal(0, 1, len(x)) * np.exp(-x * 1100)
-    snap -= np.convolve(snap, np.ones(6) / 6, mode="same")  # keep only the bright edge
-    ring = sum(a * np.sin(2 * np.pi * rng.uniform(.9, 1.1) * f / size * x + rng.random() * 6) * np.exp(-x * d)
-               for f, a, d in ((1900, 0.45, 260), (3300, 0.3, 320), (5200, 0.15, 420)))
-    knock = 0.5 * size * np.sin(2 * np.pi * 190 / size * x) * np.exp(-x * 90)
-    one = snap + ring + knock
+    snap = band_noise(len(x), 1500 / size, 9000 / size, 0.3) * np.exp(-x * 1200)
+    rattle = band_noise(len(x), 500 / size, 4000 / size, 0.8) * np.exp(-x * 260) * 0.45
+    knock = band_noise(len(x), 60, 380, 1.2) * np.exp(-x * 110) * 0.6 * max(0, size - 0.8)
+    one = snap + rattle + knock
     out = np.zeros(len(x) + int(0.02 * SR))
     out[: len(one)] += one
-    lag = int(rng.uniform(0.007, 0.013) * SR)
-    out[lag : lag + len(one)] += 0.4 * one
+    lag = int(rng.uniform(0.007, 0.013) * SR)  # the card settles with a lighter second tap
+    out[lag : lag + len(one)] += 0.35 * one
     return out
 
 
@@ -267,12 +276,12 @@ def swept_noise(length, f_start, f_end, width=0.55):
 
 
 def swipe(length=1.0, peak=0.6):
-    """A low swipe: air rushing past, its pitch falling from mid to low, with a soft sub push."""
+    """A low swipe: air rushing past, falling from mid to low, with a soft low push of air."""
     x = np.arange(int(length * SR)) / SR
     env = np.where(x < peak, (x / peak) ** 2.2, np.exp(-(x - peak) * 7))
     air = swept_noise(length, 900, 110) * env
-    sub = np.sin(2 * np.pi * np.cumsum(75 - 30 * np.clip((x - peak) / 0.3, 0, 1)) / SR) * np.exp(-np.abs(x - peak) * 9) * (x > peak - 0.15)
-    return air + 0.5 * sub
+    push = band_noise(len(x), 30, 160, 1.5) * np.exp(-np.abs(x - peak) * 8) * (x > peak - 0.2)
+    return air + 0.6 * push
 
 
 def ding(f):
@@ -301,6 +310,40 @@ for at in sorted(cues.get("logoFlips", [])):
     put(clack(1.5), at, rng.uniform(-0.4, 0.4), 0.9, 0.12, fx=True)
 put(clack(1.7), land - 0.09, 0.2, 1.1, 0.2, fx=True)
 
+# ---------- a low natural soundscape for each region, under the nasheed ----------
+amb = np.zeros((n, 2))
+
+
+def scene_env(a, b, fade=0.7):
+    return np.clip((t - a + fade / 2) / fade, 0, 1) * np.clip((b + fade / 2 - t) / fade, 0, 1)
+
+
+def gusts(rate, floor):
+    """Slow random swells between floor and 1."""
+    x = sum(np.sin(2 * np.pi * rate * (0.6 + rng.random()) * k * t + rng.random() * 6) / k for k in (1, 2, 3))
+    return floor + (1 - floor) * (x - x.min()) / np.ptp(x)
+
+
+def soundscape(make, a, b, gain):
+    env = scene_env(a, b)
+    for ch in range(2):
+        amb[:, ch] += make() * env * gain
+
+
+# Asia: monsoon rain on leaves and a river running low beside it
+soundscape(lambda: band_noise(n, 250, 2200, 1.2) * 0.6 + band_noise(n, 80, 600, 1.5) * gusts(7, 0.5), c0, c1, 1.0)
+for _ in range(int((c1 - c0) * 70)):  # heavier drops landing nearby, softened
+    s0 = rng.uniform(c0, c1)
+    d = band_noise(int(0.03 * SR), 300, 1800, 1.0) * np.exp(-np.arange(int(0.03 * SR)) / SR * 140)
+    i = int(s0 * SR)
+    seg = d[: n - i] * rng.uniform(0.2, 0.6) * scene_env(c0, c1)[i]
+    amb[i : i + len(seg), int(rng.random() < 0.5)] += seg
+# Africa: warm wind across the savanna, dry grass stirring in it
+soundscape(lambda: band_noise(n, 50, 650, 1.6) * gusts(0.5, 0.25) + band_noise(n, 700, 2400, 0.8) * gusts(1.3, 0.1) ** 2 * 0.5, c1, c2, 1.6)
+# Middle East: desert wind with a hollow low moan and fine sand drifting
+soundscape(lambda: band_noise(n, 40, 500, 1.6) * gusts(0.4, 0.3) + band_noise(n, 280, 520, 0.5) * gusts(0.7, 0.0) ** 3 * 0.6
+           + band_noise(n, 1200, 3000, 0.6) * gusts(0.9, 0.1) ** 2 * 0.25, c2, c3, 2.0)
+
 # a low swipe on every scene change, moving left to right with the plane
 for c in cuts:
     sw = swipe(1.0, 0.6)
@@ -316,9 +359,11 @@ put(ding(midi_hz * 1.5), cta + 0.22, 0.15, 0.28, 0.35, fx=True)
 # ---------- master ----------
 fade = (np.minimum(1, t / 0.3) * np.minimum(1, (dur - t) / 1.2))[:, None]
 voices = dry + reverb(send) * 0.8
-voices *= 10 ** (-21 / 20) / np.sqrt((voices**2).mean())  # the nasheed sits in the background
+voices *= 10 ** (-23 / 20) / np.sqrt((voices**2).mean())  # the nasheed sits low, in the background
+amb_active = scene_env(c0, c3) > 0.5
+amb *= 10 ** (-28 / 20) / np.sqrt((amb[amb_active] ** 2).mean())  # the soundscapes sit below the nasheed
 effects = fx_dry + reverb(fx_send, length=1.4) * 0.6
-mix = (voices + effects) * fade
+mix = (voices + amb + effects) * fade
 mix *= 10 ** (-16 / 20) / np.sqrt((mix**2).mean())  # overall loudness, about -16 dBFS RMS before the limiter
 knee = 0.7
 mag = np.abs(mix)
