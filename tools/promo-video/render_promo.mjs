@@ -1,7 +1,7 @@
 // Render a promo (tools/promo-video/promo.html + promos/<name>.js) to assets/video (1080×1920, 30 fps, 20 s):
 //   regions    -> fulki-promo-<lang>.mp4
 //   any other  -> fulki-promo-<name>-<lang>.mp4
-// Run: node tools/promo-video/render_promo.mjs [--promo regions|bangladesh|senegal] [--sound <variant>] [en|it|bn|fr ...]
+// Run: node tools/promo-video/render_promo.mjs [--promo regions|bangladesh|senegal|ghana] [--sound <variant>] [en|it|bn|fr ...]
 //      Languages and soundtrack default to the promo's own; soundtrack variants are described in make_audio.py.
 //      (needs Playwright with Chromium, ffmpeg, python3 + numpy)
 //      node tools/promo-video/render_promo.mjs [--promo name] --stills en 1.5 4 8   (PNG stills in /tmp, to check a frame)

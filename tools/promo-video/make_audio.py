@@ -1,6 +1,6 @@
 """Synthesize the promo soundtrack: a hummed melody (voices only, no instruments) in the
 background, a low natural soundscape for each scene beneath it (chosen by the promo: monsoon rain and
-river, savanna wind, desert wind and sand, tea-garden breeze, waves on the beach or a river at dusk), and sound effects on
+river, savanna wind, desert wind and sand, tea-garden breeze, waves on the beach, a river at dusk or a rainforest), and sound effects on
 top: dry mechanical clacks for every card that flips, a low swipe on every scene change, and a
 phone call-to-action when the WhatsApp number appears.
 
@@ -14,6 +14,7 @@ Usage: python3 make_audio.py cues.json out.wav [variant]
   mawwal        Middle Eastern: one open voice on "aa"/"ey" in maqam Hijaz, over a soft low "oo"
   callresponse  African: a lead calls "e-o-e" and a small group answers in harmony, on a pentatonic scale
   sahel         West African hum: the same call and response, hummed, on a minor pentatonic scale
+  akan          the hummed call and response on a major pentatonic scale, brighter (Ghana)
   raga          South Asian: a raga alaap in Raag Yaman on open "aa", gliding between notes over a soft Sa-Pa
   Other backgrounds:
   airport       no voice: an airport terminal instead (hall hum, crowd murmur, footsteps, suitcases
@@ -62,7 +63,7 @@ SCALE = {"hijaz": [0, 1, 4, 5, 7, 8, 10], "bayati": [0, 1.5, 3, 5, 7, 8, 10], "a
          # makam Hüseyni in Turkish (53-comma) tuning: the second sits 8 commas up, between E-flat and E
          "uzunhava": [0, 1.81, 2.94, 4.98, 7.02, 9.06, 9.96],
          "airport": [0, 2, 4, 5, 7, 9, 11], "none": [0, 2, 4, 5, 7, 9, 11],
-         "mawwal": [0, 1, 4, 5, 7, 8, 10], "callresponse": [0, 2, 4, 7, 9], "sahel": [0, 3, 5, 7, 10], "raga": [0, 2, 4, 6, 7, 9, 11]}[VARIANT]
+         "mawwal": [0, 1, 4, 5, 7, 8, 10], "callresponse": [0, 2, 4, 7, 9], "sahel": [0, 3, 5, 7, 10], "akan": [0, 2, 4, 7, 9], "raga": [0, 2, 4, 6, 7, 9, 11]}[VARIANT]
 TONIC = 50  # D3
 # under the airport the hum goes up an octave and a little brighter, so it carries on phone speakers
 UNDER_AIRPORT = bool(HUM) and BACKGROUND == "airport"
@@ -430,7 +431,7 @@ elif VARIANT == "mawwal":
     open_solo(MAWWAL, 7, [(0, -12), (4, -12)], glide=60, vib=1.0, vib_rate=5.5, end_vowel="a")
 elif VARIANT == "raga":
     open_solo(RAGA, 7, [(0, -12), (4, -12)], glide=150, vib=0.35, vib_rate=5.0, end_vowel="a")
-elif VARIANT == "sahel":
+elif VARIANT in ("sahel", "akan"):
     call_and_response(hum=True)
 elif VARIANT == "callresponse":
     call_and_response()
@@ -628,7 +629,20 @@ def river(a, b, gain=1.5):
         amb[i : i + len(seg), int(rng.random() < 0.5)] += seg
 
 
-SOUNDSCAPES = {"monsoon": monsoon, "savanna": savanna, "desert": desert, "tea": tea_garden, "sea": sea, "river": river}
+def forest(a, b, gain=1.5):
+    """Rainforest: a deep, layered rustle of leaves in the canopy, water dripping through it, a creek far below (Kakum)."""
+    soundscape(lambda: band_noise(n, 400, 2400, 1.0) * gusts(0.6, 0.35) * 0.55 + band_noise(n, 40, 300, 1.6) * 0.3
+               + band_noise(n, 150, 900, 1.2) * gusts(7, 0.5) * 0.3, a, b, gain)
+    for _ in range(int((b - a) * 25)):  # drips off the leaves
+        s0 = rng.uniform(a, b)
+        ln = int(0.02 * SR)
+        drip = band_noise(ln, 300, 1600, 0.8) * np.exp(-np.arange(ln) / SR * 220)
+        i = int(s0 * SR)
+        seg = drip[: n - i] * rng.uniform(0.2, 0.6) * scene_env(a, b)[i] * gain
+        amb[i : i + len(seg), int(rng.random() < 0.5)] += seg
+
+
+SOUNDSCAPES = {"forest": forest, "monsoon": monsoon, "savanna": savanna, "desert": desert, "tea": tea_garden, "sea": sea, "river": river}
 for (a, b), name in zip(((c0, c1), (c1, c2), (c2, c3)), cues.get("sounds") or ["monsoon", "savanna", "desert"]):
     SOUNDSCAPES[name](a, b)
 
