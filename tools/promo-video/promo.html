@@ -1,0 +1,440 @@
+<!doctype html>
+<!-- Source of assets/video/fulki-promo-*.mp4, a 10 s vertical (1080×1920) promo.
+     The page is a pure function of time: window.render(t) draws the frame at t seconds.
+     Render with: node tools/promo-video/render_promo.mjs   (?lang=en|it picks the copy) -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face { font-family: "Outfit"; src: url("../../assets/fonts/outfit.woff2") format("woff2"); font-weight: 100 900; }
+  @font-face { font-family: "Manrope"; src: url("../../assets/fonts/manrope.woff2") format("woff2"); font-weight: 200 800; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1080px; height: 1920px; }
+  body { position: relative; overflow: hidden; background: #0c0a09; color: #fff; font-family: "Manrope", sans-serif; }
+  #stage { position: absolute; inset: 0; }
+  .layer { position: absolute; left: 0; right: 0; will-change: transform, opacity; }
+
+  .brand { top: 84px; left: 72px; display: flex; align-items: center; gap: 18px; }
+  .brand img { width: 74px; height: 74px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+  .brand b { font: 700 46px/1 "Outfit", sans-serif; letter-spacing: -0.02em; text-shadow: 0 2px 16px rgba(0,0,0,.25); }
+
+  .intro { top: 0; height: 1920px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 44px; }
+  .intro img { width: 220px; height: 220px; border-radius: 40px; box-shadow: 0 20px 60px rgba(234,88,12,.35); }
+  .intro h1 { font: 800 112px/1.02 "Outfit", sans-serif; letter-spacing: -0.035em; text-align: center; }
+  .intro h1 em { font-style: normal; color: #ea580c; }
+
+  .title { top: 250px; padding: 0 72px; }
+  .title small { display: block; font: 700 40px/1 "Manrope", sans-serif; letter-spacing: .22em; text-transform: uppercase; opacity: .85; margin-bottom: 14px; }
+  .title h2 { font: 800 172px/0.95 "Outfit", sans-serif; letter-spacing: -0.04em; white-space: nowrap; transform-origin: left center; text-shadow: 0 6px 40px rgba(0,0,0,.25); }
+
+  .board { top: 560px; left: 60px; right: 60px; padding: 26px 26px 30px; border-radius: 28px;
+    background: rgba(12,10,9,.88); box-shadow: 0 30px 80px rgba(0,0,0,.45), inset 0 0 0 2px rgba(255,255,255,.06); }
+  .board header { display: flex; align-items: center; gap: 14px; font: 800 30px/1 "Manrope", sans-serif; letter-spacing: .24em; color: #fbbf24; margin: 2px 6px 22px; }
+  .board header svg { width: 36px; height: 36px; }
+  .row { display: flex; gap: 6px; margin-top: 10px; }
+  .cell { position: relative; width: 74px; height: 92px; border-radius: 9px; overflow: hidden;
+    background: linear-gradient(#26221f 0 50%, #1c1917 50% 100%);
+    font: 700 62px/92px "Outfit", sans-serif; text-align: center; color: #fafaf9; }
+  .cell::after { content: ""; position: absolute; left: 0; right: 0; top: 45px; height: 2px; background: #0c0a09; }
+  .cell.code { color: #fb923c; }
+  .cell.gap { width: 20px; background: none; }
+  .cell.gap::after { display: none; }
+  .cell.flip { background: linear-gradient(#34302c 0 50%, #1c1917 50% 100%); }
+
+  .outro { top: 0; height: 1920px; display: flex; flex-direction: column; align-items: center; padding-top: 360px; text-align: center; }
+  .outro .logo { width: 820px; }
+  .outro .tag { margin-top: 70px; font: 800 74px/1.05 "Outfit", sans-serif; letter-spacing: -0.03em; padding: 0 70px; }
+  .outro .tag em { font-style: normal; background: linear-gradient(100deg, #ea580c, #f59e0b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .outro .sub { margin-top: 26px; font: 600 42px/1.3 "Manrope", sans-serif; color: #d6d3d1; }
+  .outro .pill { margin-top: 70px; display: inline-flex; align-items: center; gap: 18px; padding: 26px 44px; border-radius: 999px;
+    background: #ea580c; font: 800 52px/1 "Manrope", sans-serif; box-shadow: 0 20px 60px rgba(234,88,12,.4); }
+  .outro .pill svg { width: 54px; height: 54px; }
+  .outro .url { margin-top: 40px; font: 700 46px/1 "Manrope", sans-serif; letter-spacing: .02em; color: #fafaf9; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="world" width="1080" height="1920" viewBox="0 0 1080 1920" style="position:absolute;inset:0">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop id="sky0" offset="0" /><stop id="sky1" offset="0.55" /><stop id="sky2" offset="1" />
+      </linearGradient>
+      <radialGradient id="sunGlow"><stop offset="0" stop-color="#fff7ed" stop-opacity=".9"/><stop offset=".35" stop-color="#fed7aa" stop-opacity=".45"/><stop offset="1" stop-color="#fed7aa" stop-opacity="0"/></radialGradient>
+      <radialGradient id="emberGlow"><stop offset="0" stop-color="#ea580c" stop-opacity=".55"/><stop offset="1" stop-color="#ea580c" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="1080" height="1920" fill="url(#sky)" />
+    <circle id="ember" cx="540" cy="760" r="760" fill="url(#emberGlow)" />
+    <g id="stars"></g>
+    <mask id="crescent"><rect width="1080" height="1920" fill="#fff"/><circle cx="952" cy="186" r="44" fill="#000"/></mask>
+    <g id="moon"><circle cx="930" cy="200" r="48" fill="#fef3c7" mask="url(#crescent)"/></g>
+    <g id="sun"><circle id="sunHalo" cx="540" cy="1260" r="420" fill="url(#sunGlow)"/><circle id="sunDisc" cx="540" cy="1260" r="180" fill="#fff7ed"/></g>
+    <g id="birds" fill="none" stroke-width="5" stroke-linecap="round"></g>
+    <g id="scenes"></g>
+    <filter id="tint"><feFlood flood-color="#ea580c"/><feComposite in2="SourceAlpha" operator="in"/></filter>
+    <g id="skyline" filter="url(#tint)">
+      <rect x="0" y="1772" width="1080" height="160" fill="#000"/>
+    </g>
+    <path id="trail" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 16" />
+    <g id="plane"><g transform="translate(-30 -30) scale(2.5)"><path fill="#fff" stroke="#fff" stroke-width="1.4" stroke-linejoin="round" d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></g></g>
+  </svg>
+
+  <div class="layer intro" id="intro">
+    <img src="../../assets/logo/f-board/fulki-f-flap-black-orange.svg" alt="" id="introIcon" />
+    <h1 id="introText"></h1>
+  </div>
+
+  <div class="layer brand" id="brand">
+    <img src="../../assets/logo/f-board/fulki-f-flap-black-orange.svg" alt="" />
+    <b>Fulki Travel</b>
+  </div>
+
+  <div class="layer title" id="title"><small id="kicker"></small><h2 id="region"></h2></div>
+
+  <div class="layer board" id="board">
+    <header><svg viewBox="0 0 24 24" fill="#fbbf24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg><span id="boardHead"></span></header>
+    <div id="rows"></div>
+  </div>
+
+  <div class="layer outro" id="outro">
+    <img class="logo" id="outLogo" src="../../assets/logo/fulki-travel-tours-reversed.svg" alt="Fulki Travel &amp; Tours" />
+    <div class="tag" id="outTag"></div>
+    <div class="sub" id="outSub"></div>
+    <div><span class="pill" id="outPill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/></svg>+39 0444 022494</span></div>
+    <div class="url" id="outUrl">fulkitravels.com</div>
+  </div>
+</div>
+
+<script>
+const COPY = {
+  en: { intro: "Where to <em>next?</em>", kicker: "Fly to", regions: ["Asia", "Africa", "Middle East"], board: "DEPARTURES",
+        tag: "Flights to <em>Asia, Africa</em> &amp; the <em>Middle East</em>", sub: "Booked by a real person, in Arzignano" },
+  it: { intro: "Dove si <em>vola?</em>", kicker: "Vola in", regions: ["Asia", "Africa", "Medio Oriente"], board: "PARTENZE",
+        tag: "Voli per <em>Asia, Africa</em> e <em>Medio Oriente</em>", sub: "Con una persona vera, ad Arzignano" },
+};
+const lang = new URLSearchParams(location.search).get("lang") === "it" ? "it" : "en";
+const L = COPY[lang];
+document.documentElement.lang = lang;
+
+// ---------- timeline ----------
+const T = { introEnd: 0.9, cuts: [0.9, 3.2, 5.5, 7.8], end: 10 };
+const SCENES = [
+  { id: "asia",   rows: [["DAC", "DHAKA"], ["DEL", "DELHI"], ["BKK", "BANGKOK"]] },
+  { id: "africa", rows: [["CAI", "CAIRO"], ["DSS", "DAKAR"], ["NBO", "NAIROBI"]] },
+  { id: "me",     rows: [["DXB", "DUBAI"], ["DOH", "DOHA"],  ["JED", "JEDDAH"]] },
+];
+SCENES.forEach((s, i) => { s.start = T.cuts[i]; s.end = T.cuts[i + 1]; });
+
+// sky keyframes: [top, middle, bottom]
+const SKY = {
+  night:  ["#0c0a09", "#1c1917", "#292524"],
+  asia:   ["#312e81", "#be185d", "#fb923c"],
+  africa: ["#7c2d12", "#ea580c", "#fcd34d"],
+  me:     ["#070b1f", "#3b1d5e", "#f59e0b"],
+  outro:  ["#0c0a09", "#1c1917", "#2a0f05"],
+};
+const SKY_KEYS = [[0, "night"], [0.9, "asia"], [3.2, "africa"], [5.5, "me"], [7.8, "outro"]];
+
+// ---------- helpers ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const easeOut = x => 1 - Math.pow(1 - x, 3);
+const easeIn = x => x * x * x;
+const easeInOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const backOut = x => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const hash = (...n) => { let h = 2166136261; for (const v of n) { h ^= (v * 2654435761) >>> 0; h = Math.imul(h, 16777619) >>> 0; } return (h >>> 0) / 4294967296; };
+const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+const mix = (a, b, k) => { const A = hex(a), B = hex(b); return "rgb(" + A.map((v, i) => Math.round(v + (B[i] - v) * k)).join(",") + ")"; };
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+
+// ---------- illustrated skylines ----------
+function onion(cx, base, w, h) {
+  const r = w / 2;
+  return `M${cx - r} ${base} C${cx - r * 1.3} ${base - h * .45} ${cx - w * .2} ${base - h * .72} ${cx} ${base - h}` +
+         ` C${cx + w * .2} ${base - h * .72} ${cx + r * 1.3} ${base - h * .45} ${cx + r} ${base}Z`;
+}
+const rect = (x, y, w, h) => `M${x} ${y}h${w}v${h}h${-w}Z`;
+const tri = (x1, x2, apexX, apexY, base) => `M${x1} ${base}L${apexX} ${apexY}L${x2} ${base}Z`;
+
+function minaret(cx, base, top, w, f) {
+  let d = `M${cx - w / 2} ${base}L${cx - w * .42} ${top}L${cx + w * .42} ${top}L${cx + w / 2} ${base}Z`;
+  for (const y of f.balconies) d += rect(cx - w * .8, y, w * 1.6, 10);
+  if (f.cap === "dome") d += rect(cx - w * .6, top - 22, w * 1.2, 22) + onion(cx, top - 22, w * 1.2, w * 1.1);
+  else d += tri(cx - w * .55, cx + w * .55, cx, top - w * 2.4, top);
+  d += rect(cx - 2, top - (f.cap === "dome" ? 22 + w * 1.1 + 20 : w * 2.4 + 16), 4, 20);
+  return d;
+}
+
+function asia(back, front, accent) {
+  // Mount Fuji with its snow cap, and soft hills
+  el("path", { d: "M520 1780L770 1420Q830 1392 892 1420L1140 1780Z", fill: back }, this.b);
+  el("path", { d: "M770 1420Q830 1392 892 1420L930 1474L902 1462L874 1488L846 1462L818 1490L790 1462L752 1470Z", fill: "#fdf2f8", opacity: .55 }, this.b);
+  el("path", { d: "M-20 1780Q120 1600 300 1680T620 1660T1100 1700V1800H-20Z", fill: back, opacity: .8 }, this.b);
+  let d = rect(-20, 1770, 1120, 200);
+  // Taj Mahal: plinth, hall, iwan, drum, onion dome, chhatris, four minarets
+  d += rect(290, 1712, 500, 60) + "M392 1712V1566L412 1546H668L688 1566V1712Z";
+  d += rect(468, 1520, 144, 30) + onion(540, 1522, 176, 196) + rect(538, 1300, 4, 34);
+  for (const x of [428, 652]) d += rect(x - 22, 1516, 44, 32) + onion(x, 1518, 54, 52) + rect(x - 1.5, 1452, 3, 18);
+  for (const x of [318, 762]) d += minaret(x, 1712, 1450, 26, { balconies: [1640, 1574, 1508], cap: "dome" });
+  // pagoda (left)
+  const pc = 120; let y = 1770;
+  for (let i = 0; i < 5; i++) {
+    const w = 220 - i * 34, h = 78 - i * 6;
+    d += rect(pc - w * .3, y - h + 20, w * .6, h - 20);
+    const ey = y - h + 22;
+    d += `M${pc - w / 2 - 22} ${ey - 12}Q${pc - w / 2} ${ey + 4} ${pc - w / 2 + 18} ${ey}L${pc + w / 2 - 18} ${ey}Q${pc + w / 2} ${ey + 4} ${pc + w / 2 + 22} ${ey - 12}L${pc + w * .26} ${ey - 30}L${pc - w * .26} ${ey - 30}Z`;
+    y = ey - 30;
+  }
+  d += rect(pc - 3, y - 80, 6, 82);
+  // Thai chedi (right)
+  d += rect(880, 1724, 140, 46) + "M892 1726C892 1650 928 1616 950 1606C972 1616 1008 1650 1008 1726Z";
+  for (let i = 0; i < 4; i++) d += rect(936 + i * 2, 1580 - i * 22, 28 - i * 4, 14);
+  d += tri(940, 960, 950, 1380, 1500);
+  el("path", { d, fill: front }, this.f);
+  // the Taj's central iwan, lit from behind
+  el("path", { d: "M506 1712V1620Q506 1586 540 1572Q574 1586 574 1620V1712Z", fill: accent, opacity: .55 }, this.f);
+}
+
+function africa(back, front, accent) {
+  // Kilimanjaro and the far savanna
+  el("path", { d: "M360 1780L630 1556Q700 1526 770 1532Q830 1526 900 1560L1140 1780Z", fill: back }, this.b);
+  el("path", { d: "M630 1556Q700 1526 770 1532Q830 1526 900 1560L880 1576L846 1564L812 1580L770 1566L730 1582L694 1566L654 1580Z", fill: "#fff7ed", opacity: .6 }, this.b);
+  el("path", { d: "M-20 1730Q260 1690 540 1716T1100 1708V1800H-20Z", fill: back, opacity: .85 }, this.b);
+  // pyramids of Giza, each with a sunlit face
+  for (const [x1, x2, ax, ay] of [[0, 210, 105, 1610], [40, 470, 255, 1420], [280, 480, 380, 1590]]) {
+    el("path", { d: tri(x1, x2, ax, ay, 1772), fill: front }, this.f);
+    el("path", { d: `M${ax} ${ay}L${x2} 1772L${ax + (x2 - ax) * .25} 1772Z`, fill: accent, opacity: .28 }, this.f);
+  }
+  let d = rect(-20, 1770, 1120, 200);
+  // acacia: trunk, branches, flat canopy
+  d += "M806 1772C812 1690 806 1620 822 1540L834 1540C824 1620 832 1690 830 1772Z";
+  d += "M822 1560C790 1520 752 1490 700 1466L708 1458C760 1478 800 1508 830 1548Z";
+  d += "M826 1556C850 1510 900 1484 960 1462L964 1472C910 1494 866 1520 834 1560Z";
+  el("path", { d, fill: front }, this.f);
+  for (const [cx, cy, rx, ry] of [[736, 1452, 80, 28], [800, 1432, 120, 36], [910, 1446, 110, 32], [990, 1464, 70, 22], [850, 1418, 80, 24]])
+    el("ellipse", { cx, cy, rx, ry, fill: front }, this.f);
+  // giraffe browsing at the canopy edge
+  const g = el("g", { fill: front, transform: "translate(486 40)" }, this.f);
+  el("path", { d: "M-50 1648C-60 1612 -20 1592 30 1594C70 1596 92 1606 96 1630C98 1650 80 1662 40 1664C0 1666 -40 1664 -50 1648Z" }, g);
+  el("path", { d: "M62 1612L110 1474L132 1478L94 1622Z" }, g);
+  el("path", { d: "M104 1488C112 1466 134 1460 156 1470C166 1476 166 1486 156 1490C140 1494 124 1494 112 1500Z" }, g);
+  el("path", { d: "M114 1470L110 1448M124 1468L124 1446", stroke: front, "stroke-width": 5, "stroke-linecap": "round" }, g);
+  el("path", { d: "M-50 1630Q-74 1650 -70 1690", stroke: front, "stroke-width": 5, fill: "none", "stroke-linecap": "round" }, g);
+  for (const [x, lean] of [[-36, -6], [-14, 4], [52, -4], [76, 8]]) el("path", { d: `M${x - 7} 1650L${x + lean - 4} 1772L${x + lean + 4} 1772L${x + 7} 1650Z` }, g);
+  // grass tufts
+  let gr = "";
+  for (let i = 0; i < 26; i++) { const x = i * 43 + hash(i, 7) * 20, h = 14 + hash(i, 9) * 22; gr += `M${x} 1772L${x + 4} ${1772 - h}L${x + 8} 1772Z`; }
+  el("path", { d: gr, fill: front }, this.f);
+}
+
+function middleEast(back, front, accent) {
+  // dunes and a far skyline
+  let sk = "";
+  for (let i = 0; i < 18; i++) { const x = 560 + i * 26, h = 40 + hash(i, 3) * 110; sk += rect(x, 1700 - h, 20, h + 60); }
+  el("path", { d: sk, fill: back, opacity: .7 }, this.b);
+  el("path", { d: "M-20 1720Q220 1620 470 1690T1100 1660V1800H-20Z", fill: back }, this.b);
+  let d = "M-20 1772Q300 1740 600 1764T1100 1756V1960H-20Z";
+  // mosque: hall, drum, great dome, side domes, two minarets, crescent finial
+  d += rect(300, 1616, 340, 160) + rect(372, 1576, 196, 44) + onion(470, 1578, 206, 176);
+  for (const x of [334, 606]) d += onion(x, 1618, 62, 52);
+  for (const x of [246, 694]) d += minaret(x, 1772, 1340, 30, { balconies: [1560, 1450], cap: "cone" });
+  d += rect(468, 1370, 4, 36);
+  // Burj Khalifa: stepped setbacks and spire
+  let y = 1772;
+  [124, 104, 88, 74, 60, 48, 36, 26, 18].forEach((w, i) => {
+    const h = 74 - i * 2, off = (i % 3 - 1) * 6;
+    d += rect(930 - w / 2 + off, y - h, w, h + 1); y -= h;
+  });
+  d += tri(926, 936, 931, y - 150, y + 2);
+  // palms
+  for (const [x, top, lean] of [[70, 1500, 40], [170, 1560, -30]]) {
+    d += `M${x - 9} 1772Q${x + lean * .2} ${(1772 + top) / 2} ${x + lean - 4} ${top}L${x + lean + 4} ${top}Q${x + lean * .2 + 12} ${(1772 + top) / 2} ${x + 9} 1772Z`;
+    const cx = x + lean, cy = top;
+    for (const a of [-170, -140, -105, -70, -35, -8, 20]) {
+      const r = a * Math.PI / 180, ex = cx + Math.cos(r) * 130, ey = cy + Math.sin(r) * 60 + 64;
+      const mx = cx + Math.cos(r) * 70, my = cy + Math.sin(r) * 70 - 10;
+      d += `M${cx} ${cy}Q${mx} ${my - 12} ${ex} ${ey}Q${mx} ${my + 14} ${cx} ${cy + 8}Z`;
+    }
+  }
+  el("path", { d, fill: front }, this.f);
+  // lit windows on the mosque
+  let w = "";
+  for (const x of [330, 380, 540, 590]) w += `M${x} 1700V1660Q${x + 12} 1642 ${x + 24} 1660V1700Z`;
+  el("path", { d: w, fill: accent, opacity: .8 }, this.f);
+}
+
+const SCENE_ART = { asia: [asia, "#7e2553", "#2a0f2e", "#fdba74"], africa: [africa, "#b45309", "#1c0a03", "#fed7aa"], me: [middleEast, "#2e1d55", "#070a18", "#fbbf24"] };
+for (const s of SCENES) {
+  const g = el("g", { id: "scene-" + s.id }, $("scenes"));
+  const ctx = { b: el("g", {}, g), f: el("g", { id: "art-" + s.id }, el("g", {}, g)) };
+  const [fn, back, front, accent] = SCENE_ART[s.id];
+  fn.call(ctx, back, front, accent);
+  s.g = g; s.back = ctx.b; s.front = ctx.f.parentNode;
+}
+
+SCENES.forEach((s, i) => {
+  const u = el("use", { href: "#art-" + s.id }, $("skyline"));
+  u.setAttribute("transform", `translate(${i * 360} ${1772 * (1 - 1 / 3)}) scale(${1 / 3})`);
+});
+
+// stars (Middle East night) and birds (Africa sunset)
+const STARS = [];
+for (let i = 0; i < 70; i++) {
+  const c = el("circle", { cx: hash(i, 1) * 1080, cy: hash(i, 2) * 1150, r: 1.5 + hash(i, 3) * 2.5, fill: "#fff" }, $("stars"));
+  STARS.push([c, hash(i, 4) * 6.28, .4 + hash(i, 5) * .6]);
+}
+const BIRDS = [];
+for (let i = 0; i < 6; i++) BIRDS.push([el("path", { stroke: "#1c0a03" }, $("birds")), 180 + hash(i, 11) * 360, 1060 + hash(i, 12) * 220, .7 + hash(i, 13) * .6, hash(i, 14) * 6]);
+
+// ---------- text ----------
+$("introText").innerHTML = L.intro;
+$("kicker").textContent = L.kicker;
+$("boardHead").textContent = L.board;
+$("outTag").innerHTML = L.tag;
+$("outSub").textContent = L.sub;
+
+// departures board: 3 rows of [code(3)] [gap] [city(8)]
+const CODE = 3, CITY = 8, CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const cells = [];
+for (let r = 0; r < 3; r++) {
+  const row = document.createElement("div"); row.className = "row"; $("rows").appendChild(row);
+  cells[r] = [];
+  for (let c = 0; c < CODE + 1 + CITY; c++) {
+    const d = document.createElement("div");
+    d.className = "cell" + (c < CODE ? " code" : c === CODE ? " gap" : "");
+    row.appendChild(d);
+    if (c !== CODE) cells[r].push(d);
+  }
+}
+const rowText = (s, r) => s ? (s.rows[r][0] + s.rows[r][1].padEnd(CITY)).slice(0, CODE + CITY) : " ".repeat(CODE + CITY);
+
+function flapChar(t, r, c) {
+  // which scene's text is (or is becoming) current
+  let k = -1;
+  for (let i = 0; i < SCENES.length; i++) if (t >= SCENES[i].start - 0.05) k = i;
+  if (k < 0) return [" ", false];
+  const target = rowText(SCENES[k], r)[c];
+  const prev = rowText(SCENES[k - 1], r)[c];
+  const s = SCENES[k].start + 0.05 + r * 0.12 + c * 0.028;
+  const e = s + 0.28 + hash(r, c, k) * 0.3;
+  if (t < s) return [prev, false];
+  if (t >= e) return [target, false];
+  if (target === " " && prev === " " && hash(r, c, k, 9) < .6) return [" ", false];
+  return [CHARS[Math.floor(hash(Math.floor(t * 30), r, c, k) * CHARS.length)], true];
+}
+
+let flipping = 0;
+function setT(id, x, y, o, s = 1) { const e = $(id); e.style.transform = `translate(${x}px, ${y}px) scale(${s})`; e.style.opacity = o; }
+
+// ---------- frame ----------
+window.render = function (t) {
+  // sky
+  let a = SKY_KEYS[0], b = SKY_KEYS[0];
+  for (let i = 0; i < SKY_KEYS.length; i++) if (t >= SKY_KEYS[i][0] - 0.3) { a = SKY_KEYS[Math.max(0, i - 1)]; b = SKY_KEYS[i]; }
+  const k = easeInOut(prog(t, b[0] - 0.3, b[0] + 0.3));
+  [0, 1, 2].forEach(i => $("sky" + i).setAttribute("stop-color", mix(SKY[a[1]][i], SKY[b[1]][i], k)));
+
+  // ember glow: intro and outro only
+  $("ember").setAttribute("opacity", Math.max(1 - prog(t, 0.7, 1.1), prog(t, 7.7, 8.2)) * (0.85 + 0.15 * Math.sin(t * 2)));
+
+  // scenes rise in from below and sink away
+  for (const s of SCENES) {
+    const pin = easeOut(prog(t, s.start - 0.2, s.start + 0.6));
+    const pout = easeIn(prog(t, s.end - 0.25, s.end + 0.35));
+    const vis = pin > 0 && pout < 1;
+    s.g.style.display = vis ? "" : "none";
+    if (!vis) continue;
+    const drift = (t - s.start) * 10;
+    s.front.setAttribute("transform", `translate(${-drift} ${(1 - pin) * 520 + pout * 520})`);
+    s.back.setAttribute("transform", `translate(${-drift * .4} ${(1 - pin) * 340 + pout * 340})`);
+  }
+
+  // sun: dawn over Asia, big setting sun over Africa
+  const sA = prog(t, 0.8, 1.4) * (1 - prog(t, 3.0, 3.4));
+  const sB = prog(t, 3.1, 3.6) * (1 - prog(t, 5.3, 5.7));
+  const sunR = 170 + 110 * prog(t, 3.0, 3.6), sunY = 1300 - 70 * prog(t, 0.8, 3.2) + 40 * prog(t, 3.2, 5.5);
+  $("sun").setAttribute("opacity", Math.max(sA, sB));
+  $("sunDisc").setAttribute("r", sunR); $("sunDisc").setAttribute("cy", sunY);
+  $("sunHalo").setAttribute("r", sunR * 2.4); $("sunHalo").setAttribute("cy", sunY);
+  $("sunDisc").setAttribute("fill", mix("#fde68a", "#fff7ed", prog(t, 3.0, 3.6)));
+
+  // night sky: stars + crescent over the Middle East
+  const night = prog(t, 5.3, 5.9) * (1 - prog(t, 7.6, 8.1));
+  $("stars").setAttribute("opacity", night);
+  for (const [c, ph, base] of STARS) c.setAttribute("opacity", base * (0.6 + 0.4 * Math.sin(t * 5 + ph)));
+  $("moon").setAttribute("opacity", night);
+  $("moon").setAttribute("transform", `translate(0 ${(1 - easeOut(prog(t, 5.3, 6.0))) * 60})`);
+
+  // birds crossing the African sunset
+  $("birds").setAttribute("opacity", prog(t, 3.4, 3.8) * (1 - prog(t, 5.2, 5.5)));
+  for (const [p, x0, y0, sc, ph] of BIRDS) {
+    const x = x0 + (t - 3.2) * 90 * sc, y = y0 - (t - 3.2) * 12, f = Math.sin(t * 12 + ph) * 10 * sc, w = 22 * sc;
+    p.setAttribute("d", `M${x - w} ${y - f}Q${x - w / 2} ${y - 6} ${x} ${y}Q${x + w / 2} ${y - 6} ${x + w} ${y - f}`);
+  }
+
+  // plane flyby at each cut, leaving a dotted contrail
+  let fly = null;
+  for (const c of T.cuts) if (t >= c - 0.6 && t <= c + 1.0) fly = c;
+  if (fly !== null) {
+    const pt = u => { const v = 1 - u; return [v * v * -140 + 2 * v * u * 540 + u * u * 1240, v * v * 1240 + 2 * v * u * 880 + u * u * 1060]; };
+    const u = easeInOut(prog(t, fly - 0.6, fly + 0.5));
+    const [x, y] = pt(u), [x2, y2] = pt(Math.min(1, u + 0.01));
+    const ang = Math.atan2(y2 - y, x2 - x) * 180 / Math.PI + 45;
+    $("plane").setAttribute("transform", `translate(${x} ${y}) rotate(${ang})`);
+    $("plane").setAttribute("opacity", u < 1 ? 1 : 0);
+    let d = "";
+    for (let i = 0; i <= 40; i++) { const [px, py] = pt(u * i / 40); d += (i ? "L" : "M") + px.toFixed(1) + " " + py.toFixed(1); }
+    $("trail").setAttribute("d", d);
+    $("trail").setAttribute("opacity", 0.75 * (1 - prog(t, fly + 0.4, fly + 1.0)));
+  } else { $("plane").setAttribute("opacity", 0); $("trail").setAttribute("opacity", 0); }
+
+  // intro
+  const iIn = backOut(prog(t, 0, 0.35)), iOut = easeIn(prog(t, 0.62, 0.95));
+  setT("intro", 0, -iOut * 160, Math.min(prog(t, 0, 0.2), 1 - iOut));
+  $("introIcon").style.transform = `scale(${0.6 + 0.4 * iIn}) rotateX(${(1 - prog(t, 0, 0.3)) * 80}deg)`;
+  $("introText").style.transform = `translateY(${(1 - easeOut(prog(t, 0.1, 0.45))) * 40}px)`;
+  $("introText").style.opacity = prog(t, 0.1, 0.35);
+
+  // brand chip
+  setT("brand", 0, (1 - easeOut(prog(t, 0.75, 1.15))) * -30, prog(t, 0.75, 1.1) * (1 - prog(t, 7.6, 7.9)));
+
+  // region title
+  let ti = -1;
+  for (let i = 0; i < SCENES.length; i++) if (t >= SCENES[i].start - 0.05) ti = i;
+  if (ti >= 0 && t < SCENES[2].end) {
+    const s = SCENES[ti], pin = easeOut(prog(t, s.start, s.start + 0.4)), pout = easeIn(prog(t, s.end - 0.3, s.end - 0.02));
+    $("region").textContent = L.regions[ti];
+    const h2 = $("region"), fit = Math.min(1, 936 / h2.scrollWidth);
+    h2.style.transform = `scale(${fit})`;
+    setT("title", (1 - pin) * 80 - pout * 80, 0, pin * (1 - pout));
+  } else $("title").style.opacity = 0;
+
+  // departures board
+  const bIn = easeOut(prog(t, 0.75, 1.15)), bOut = easeIn(prog(t, 7.55, 7.95));
+  setT("board", 0, (1 - bIn) * 60 - bOut * 80, bIn * (1 - bOut));
+  flipping = 0;
+  for (let r = 0; r < 3; r++) for (let c = 0; c < CODE + CITY; c++) {
+    const [ch, f] = flapChar(t, r, c), cell = cells[r][c];
+    if (cell.textContent !== ch) cell.textContent = ch;
+    cell.classList.toggle("flip", f);
+    flipping += f;
+  }
+
+  // outro
+  const o = t - 7.8;
+  $("skyline").setAttribute("opacity", 0.4 * easeOut(prog(o, 0.2, 0.8)));
+  $("skyline").setAttribute("transform", `translate(0 ${(1 - easeOut(prog(o, 0.2, 0.9))) * 120})`);
+  $("outro").style.opacity = prog(o, 0.05, 0.35);
+  $("outLogo").style.transform = `scale(${0.9 + 0.1 * easeOut(prog(o, 0.05, 0.6))})`;
+  for (const [id, a0] of [["outTag", 0.35], ["outSub", 0.5], ["outPill", 0.65], ["outUrl", 0.8]]) {
+    $(id).style.opacity = prog(o, a0, a0 + 0.3);
+    $(id).style.transform = `translateY(${(1 - easeOut(prog(o, a0, a0 + 0.4))) * 40}px)` + (id === "outPill" ? ` scale(${1 + 0.03 * Math.sin(Math.max(0, o - 1.2) * 5)})` : "");
+  }
+  return flipping;
+};
+window.TIMELINE = T;
+render(0);
+</script>
+</body>
+</html>

@@ -18,6 +18,12 @@ python3 tools/build_lang_pages.py
 The link-preview image `assets/og-image.png` is drawn from `tools/og-image.html`; re-render it with
 `node tools/build_og_image.mjs` (needs Playwright).
 
+## Promo video
+
+`assets/video/fulki-promo-en.mp4` and `fulki-promo-it.mp4` are 10-second vertical (1080×1920) promos for
+Asia, Africa and the Middle East, drawn from `tools/promo-video/promo.html`. Re-render both with
+`node tools/promo-video/render_promo.mjs` (needs Playwright, ffmpeg and Python with numpy).
+
 ## Contact
 
 - **Address:** Via 4 Martiri, 44, 36071 Arzignano (VI), Italy
