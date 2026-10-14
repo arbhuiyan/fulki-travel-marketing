@@ -17,7 +17,7 @@ Usage: python3 make_audio.py cues.json out.wav [variant]
   Other backgrounds:
   airport       no voice: an airport terminal instead (hall hum, crowd murmur, footsteps, suitcases
                 rolling past, the announcement chime, a jet taking off as the logo lands)
-  airport+NAME  the airport with any melody below hummed very quietly beneath it, e.g.
+  airport+NAME  the airport with any melody below hummed quietly beneath it (an octave up, so it carries), e.g.
                 airport+hijaz (default) or airport+alaap
   none          no background at all: only the regional soundscapes and the sound effects
   Hummed or more ornate:
@@ -63,6 +63,10 @@ SCALE = {"hijaz": [0, 1, 4, 5, 7, 8, 10], "bayati": [0, 1.5, 3, 5, 7, 8, 10], "a
          "airport": [0, 2, 4, 5, 7, 9, 11], "none": [0, 2, 4, 5, 7, 9, 11],
          "mawwal": [0, 1, 4, 5, 7, 8, 10], "callresponse": [0, 2, 4, 7, 9], "raga": [0, 2, 4, 6, 7, 9, 11]}[VARIANT]
 TONIC = 50  # D3
+# under the airport the hum goes up an octave and a little brighter, so it carries on phone speakers
+UNDER_AIRPORT = bool(HUM) and BACKGROUND == "airport"
+if UNDER_AIRPORT:
+    TONIC = 62
 
 
 def semis(deg):
@@ -230,6 +234,8 @@ def sing(notes, a, b, shift=0.0, size=1.0, vib=1.0, late=0.0, breath=0.02, glide
     With vowel=None the voice hums; otherwise it sings open vowels ("a", "e", "o", "u"), and a note can
     name its own vowel among its marks. Other marks: "gamak" (a slow wide shake) and "girtlak"
     (Turkish throat ornament: quick catches and flips to the note above, partway through the note)."""
+    if UNDER_AIRPORT and vowel is None:
+        size *= 1.35
     pitch = np.full(nc, np.nan)
     gate = np.zeros(nc)
     onset = np.zeros(nc)  # seconds since the current note began
@@ -660,9 +666,9 @@ VOICE_LEVEL = -25 if BACKGROUND == "airport" else {"mawwal": -27, "callresponse"
 voices = dry + reverb(send, length=3.5 if BACKGROUND == "airport" else 2.8) * 0.8
 if VARIANT != "none":
     voices *= 10 ** (VOICE_LEVEL / 20) / np.sqrt((voices**2).mean())  # the background sits low
-if HUM:  # the hummed melody: about 12 dB under the airport, felt more than heard
+if HUM:  # the hummed melody, a few dB under the airport
     hum = hum_dry + reverb(hum_send) * 0.8
-    voices += hum * 10 ** ((VOICE_LEVEL - 12) / 20) / np.sqrt((hum**2).mean())
+    voices += hum * 10 ** ((VOICE_LEVEL - 5) / 20) / np.sqrt((hum**2).mean())
 amb_active = scene_env(c0, c3) > 0.5
 amb *= 10 ** ((VOICE_LEVEL - 5) / 20) / np.sqrt((amb[amb_active] ** 2).mean())  # the soundscapes sit below the voices
 effects = fx_dry + reverb(fx_send, length=1.4) * 0.6

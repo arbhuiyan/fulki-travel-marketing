@@ -25,7 +25,7 @@ Asia (with Dhaka's Shaheed Minar), Africa and the Middle East, drawn from `tools
 The soundtrack, synthesized by `make_audio.py`, is an airport terminal in the background (hall hum, crowd
 murmur, footsteps, rolling suitcases, the announcement chime, a jet taking off as the logo lands), a low natural
 soundscape for each region beneath it, and on top split-flap clacks, a low swipe on each scene change and a
-phone call-to-action at the end. A Hijaz nasheed is hummed very quietly under the airport. Other backgrounds
+phone call-to-action at the end. A Hijaz nasheed is hummed quietly under the airport. Other backgrounds
 (hummed or sung melodies, or none) are listed in `make_audio.py`; pick one with `--sound` (default `airport+hijaz`).
 
 ## Contact
