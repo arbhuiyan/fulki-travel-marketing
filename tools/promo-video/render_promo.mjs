@@ -1,5 +1,5 @@
 // Render tools/promo-video/promo.html to assets/video/fulki-promo-<lang>.mp4 (1080×1920, 30 fps, 15 s).
-// Run: node tools/promo-video/render_promo.mjs [--sound alaap|mawwal|callresponse|raga|airport|none|uzunhava|hijaz|bayati] [en|it ...]
+// Run: node tools/promo-video/render_promo.mjs [--sound airport+hijaz|airport|alaap|mawwal|callresponse|raga|none|uzunhava|hijaz|bayati] [en|it ...]
 //      (needs Playwright with Chromium, ffmpeg, python3 + numpy; the soundtrack variants are described in make_audio.py)
 //      node tools/promo-video/render_promo.mjs --stills en 1.5 4 8   (writes PNG stills to /tmp for checking a frame)
 import { chromium } from "playwright";
@@ -15,7 +15,7 @@ const FPS = 30, W = 1080, H = 1920;
 
 const args = process.argv.slice(2);
 const soundAt = args.indexOf("--sound");
-const sound = soundAt >= 0 ? args.splice(soundAt, 2)[1] : "airport";
+const sound = soundAt >= 0 ? args.splice(soundAt, 2)[1] : "airport+hijaz";
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: W, height: H } });
 

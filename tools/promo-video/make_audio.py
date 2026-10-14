@@ -16,7 +16,9 @@ Usage: python3 make_audio.py cues.json out.wav [variant]
   raga          South Asian: a raga alaap in Raag Yaman on open "aa", gliding between notes over a soft Sa-Pa
   Other backgrounds:
   airport       no voice: an airport terminal instead (hall hum, crowd murmur, footsteps, suitcases
-                rolling past, the announcement chime, a jet taking off as the logo lands) (default)
+                rolling past, the announcement chime, a jet taking off as the logo lands)
+  airport+NAME  the airport with any melody below hummed very quietly beneath it, e.g.
+                airport+hijaz (default) or airport+alaap
   none          no background at all: only the regional soundscapes and the sound effects
   Hummed or more ornate:
   alaap   South Asian free-voice humming, like a raga alaap or a Bengali bhatiyali: one voice in free
@@ -39,7 +41,11 @@ import numpy as np
 SR = 44100
 CR = 1000  # control rate for pitch and loudness curves
 cues = json.load(open(sys.argv[1]))
-VARIANT = sys.argv[3] if len(sys.argv) > 3 else "airport"
+VARIANT = sys.argv[3] if len(sys.argv) > 3 else "airport+hijaz"
+# "airport+hijaz" etc.: the airport background with a melody hummed very quietly beneath it
+BACKGROUND, _, HUM = VARIANT.partition("+")
+if HUM:
+    VARIANT = HUM
 rng = np.random.default_rng(31)
 fps, dur, cuts, land = cues["fps"], cues["seconds"], cues["cuts"], cues["land"]
 n, nc = int(SR * dur), int(CR * dur)
@@ -640,16 +646,23 @@ def airport():
         put(jet * swell, c3 - 0.5, pan, 0.35, 0.3)
 
 
-if VARIANT == "airport":
+if HUM:  # keep the quiet melody on its own layer, then lay the airport down as the background
+    hum_dry, hum_send = dry.copy(), send.copy()
+    dry[:] = 0
+    send[:] = 0
+if VARIANT == "airport" or BACKGROUND == "airport":
     airport()
 
 # ---------- master ----------
 fade = (np.minimum(1, t / 0.3) * np.minimum(1, (dur - t) / 1.2))[:, None]
 # dBFS RMS of the background layer: the open voices sit lower still, the airport between the two
-VOICE_LEVEL = {"mawwal": -27, "callresponse": -27, "raga": -27, "airport": -25}.get(VARIANT, -23)
-voices = dry + reverb(send, length=3.5 if VARIANT == "airport" else 2.8) * 0.8
+VOICE_LEVEL = -25 if BACKGROUND == "airport" else {"mawwal": -27, "callresponse": -27, "raga": -27}.get(VARIANT, -23)
+voices = dry + reverb(send, length=3.5 if BACKGROUND == "airport" else 2.8) * 0.8
 if VARIANT != "none":
     voices *= 10 ** (VOICE_LEVEL / 20) / np.sqrt((voices**2).mean())  # the background sits low
+if HUM:  # the hummed melody: about 12 dB under the airport, felt more than heard
+    hum = hum_dry + reverb(hum_send) * 0.8
+    voices += hum * 10 ** ((VOICE_LEVEL - 12) / 20) / np.sqrt((hum**2).mean())
 amb_active = scene_env(c0, c3) > 0.5
 amb *= 10 ** ((VOICE_LEVEL - 5) / 20) / np.sqrt((amb[amb_active] ** 2).mean())  # the soundscapes sit below the voices
 effects = fx_dry + reverb(fx_send, length=1.4) * 0.6
