@@ -1,9 +1,11 @@
-"""Synthesize the promo soundtrack: a hummed nasheed, voices only, no instruments.
+"""Synthesize the promo soundtrack: a hummed nasheed (voices only, no instruments) in the
+background, with sound effects on top: mechanical split-flap clacks for every card that flips,
+a low swipe on every scene change, and a phone call-to-action when the WhatsApp number appears.
 
 A lead voice hums a maqam melody (with vibrato, slides and grace notes), a group of voices joins
 it scene by scene, a low hummed drone holds the tonic, and a soft hummed "dum" pulse gives the
 middle scenes their drive. The voices climb as FULKI flips in, land on the tonic with the plane,
-and fade out under the contact details. Every card that flips makes a mechanical split-flap clack.
+and fade out under the contact details.
 
 Usage: python3 make_audio.py cues.json out.wav [variant]
   hijaz   maqam Hijaz on D: the classic, uplifting sound (default)
@@ -26,8 +28,10 @@ fps, dur, cuts, land = cues["fps"], cues["seconds"], cues["cuts"], cues["land"]
 n, nc = int(SR * dur), int(CR * dur)
 t = np.arange(n) / SR
 tc = np.arange(nc) / CR
-dry = np.zeros((n, 2))
+dry = np.zeros((n, 2))  # voices
 send = np.zeros((n, 2))
+fx_dry = np.zeros((n, 2))  # sound effects
+fx_send = np.zeros((n, 2))
 
 # scale degrees 0..6 (+ octaves) in semitones above the tonic D
 MAQAM = {"hijaz": [0, 1, 4, 5, 7, 8, 10], "bayati": [0, 1.5, 3, 5, 7, 8, 10]}[VARIANT]
@@ -153,12 +157,15 @@ def sing(notes, a, b, shift=0.0, size=1.0, vib=1.0, late=0.0, breath=0.02, glide
     put(out * amp, a, pan, gain, verb)
 
 
-def put(sig, start, pan=0.0, gain=1.0, verb=0.3):
+def put(sig, start, pan=0.0, gain=1.0, verb=0.3, fx=False):
+    """Place a mono sound at `start` seconds, panned -1..1 (or a stereo pair of curves), on the voice or effects bus."""
     i = int(round(start * SR))
     sig = sig[: max(0, n - i)] * gain
-    lr = np.array([np.cos((pan + 1) * np.pi / 4), np.sin((pan + 1) * np.pi / 4)])
-    dry[i : i + len(sig)] += sig[:, None] * lr
-    send[i : i + len(sig)] += sig[:, None] * lr * verb
+    pan = np.asarray(pan)[: len(sig)] if np.ndim(pan) else pan
+    lr = np.stack([np.cos((pan + 1) * np.pi / 4), np.sin((pan + 1) * np.pi / 4)], -1) * np.ones((len(sig), 2))
+    d, r = (fx_dry, fx_send) if fx else (dry, send)
+    d[i : i + len(sig)] += sig[:, None] * lr
+    r[i : i + len(sig)] += sig[:, None] * lr * verb
 
 
 def inhale(at, gain=0.035):
@@ -225,38 +232,94 @@ for k, (octv, deg) in enumerate(chord):
     sing([(land, dur - 0.2, deg)], land - 0.02, dur, shift=octv + 0.05 * (-1) ** k, size=1.0 + 0.04 * k,
          vib=0.5, late=0.01 * k, breath=0.05, pan=-0.6 + 0.4 * k, gain=0.28, verb=0.85)
 
-# split-flap mechanics: each card snaps over with a plastic clack, then taps once as it settles
+# ---------- sound effects ----------
 def clack(size=1.0):
-    """One flap falling: a sharp snap, a short ring from the card, a soft thud from the frame."""
-    x = np.arange(int(0.06 * SR)) / SR
-    snap = rng.normal(0, 1, len(x)) * np.exp(-x * 900)
-    snap -= np.convolve(snap, np.ones(8) / 8, mode="same")  # keep only the bright edge
-    f1, f2 = rng.uniform(1600, 2000) / size, rng.uniform(2900, 3500) / size
-    ring = 0.5 * np.sin(2 * np.pi * f1 * x) * np.exp(-x * 160) + 0.3 * np.sin(2 * np.pi * f2 * x) * np.exp(-x * 220)
-    thud = 0.6 * size * np.sin(2 * np.pi * 170 / size * x) * np.exp(-x * 70)
-    one = snap + ring + thud
+    """One flap falling over: a sharp plastic snap, a very short ring from the card,
+    a soft knock from the frame, and a quieter second tap as it settles."""
+    x = np.arange(int(0.05 * SR)) / SR
+    snap = rng.normal(0, 1, len(x)) * np.exp(-x * 1100)
+    snap -= np.convolve(snap, np.ones(6) / 6, mode="same")  # keep only the bright edge
+    ring = sum(a * np.sin(2 * np.pi * rng.uniform(.9, 1.1) * f / size * x + rng.random() * 6) * np.exp(-x * d)
+               for f, a, d in ((1900, 0.45, 260), (3300, 0.3, 320), (5200, 0.15, 420)))
+    knock = 0.5 * size * np.sin(2 * np.pi * 190 / size * x) * np.exp(-x * 90)
+    one = snap + ring + knock
     out = np.zeros(len(x) + int(0.02 * SR))
     out[: len(one)] += one
-    lag = int(rng.uniform(0.008, 0.014) * SR)  # the settle tap
-    out[lag : lag + len(one)] += 0.35 * one
+    lag = int(rng.uniform(0.007, 0.013) * SR)
+    out[lag : lag + len(one)] += 0.4 * one
     return out
 
 
-# the departures board: every cycling cell flips once per frame (a busy clatter, capped per frame)
+def swept_noise(length, f_start, f_end, width=0.55):
+    """Noise through a band-pass whose centre glides from f_start to f_end (log scale), via STFT."""
+    win, hop = 2048, 256
+    total = int(length * SR)
+    noise = rng.normal(0, 1, total + win)
+    out = np.zeros(total + win)
+    f = np.maximum(np.fft.rfftfreq(win, 1 / SR), 1)
+    w = np.hanning(win)
+    for i in range(0, total, hop):
+        fc = f_start * (f_end / f_start) ** (i / total)
+        band = np.exp(-0.5 * (np.log2(f / fc) / width) ** 2)
+        out[i : i + win] += np.fft.irfft(np.fft.rfft(noise[i : i + win] * w) * band, win) * w
+    out = out[:total]
+    return out / (np.abs(out).max() + 1e-9)
+
+
+def swipe(length=1.0, peak=0.6):
+    """A low swipe: air rushing past, its pitch falling from mid to low, with a soft sub push."""
+    x = np.arange(int(length * SR)) / SR
+    env = np.where(x < peak, (x / peak) ** 2.2, np.exp(-(x - peak) * 7))
+    air = swept_noise(length, 900, 110) * env
+    sub = np.sin(2 * np.pi * np.cumsum(75 - 30 * np.clip((x - peak) / 0.3, 0, 1)) / SR) * np.exp(-np.abs(x - peak) * 9) * (x > peak - 0.15)
+    return air + 0.5 * sub
+
+
+def ding(f):
+    """A soft notification tone: a pure note with a faint bell partial."""
+    x = np.arange(int(1.2 * SR)) / SR
+    tone = np.sin(2 * np.pi * f * x) + 0.25 * np.sin(2 * np.pi * 2 * f * x) * np.exp(-x * 6) + 0.1 * np.sin(2 * np.pi * 2.76 * f * x) * np.exp(-x * 10)
+    return tone * np.exp(-x * 4.5) * np.minimum(1, x / 0.003)
+
+
+def buzz(length=0.22):
+    """A phone vibrating on a table."""
+    x = np.arange(int(length * SR)) / SR
+    motor = np.tanh(3 * np.sin(2 * np.pi * 165 * x)) * (0.7 + 0.3 * np.sin(2 * np.pi * 30 * x))
+    rattle = rng.normal(0, 1, len(x)) * (np.sin(2 * np.pi * 165 * x) > 0.8) * 0.25
+    return (motor + rattle) * np.minimum(1, x / 0.02) * np.minimum(1, (length - x) / 0.03)
+
+
+# the departures board: every cycling cell flips once per frame, a busy mechanical rattle
 for fi, count in enumerate(cues["flaps"]):
     if fi / fps >= c3 - 0.1:
         break
-    for _ in range(min(count, 6)):
-        put(clack(0.9), fi / fps + rng.uniform(0, 1 / fps), rng.uniform(-0.6, 0.6), 0.3 * rng.uniform(0.6, 1), 0.06)
+    for _ in range(min(count, 7)):
+        put(clack(0.9), fi / fps + rng.uniform(0, 1 / fps), rng.uniform(-0.6, 0.6), 0.32 * rng.uniform(0.6, 1), 0.08, fx=True)
 # the big FULKI cards: heavier, deeper clacks exactly on each flip; the plane lands with the loudest
-for k, at in enumerate(sorted(cues.get("logoFlips", []))):
-    put(clack(1.5), at, rng.uniform(-0.4, 0.4), 1.1, 0.12)
-put(clack(1.7), land - 0.09, 0.2, 1.2, 0.2)
+for at in sorted(cues.get("logoFlips", [])):
+    put(clack(1.5), at, rng.uniform(-0.4, 0.4), 0.9, 0.12, fx=True)
+put(clack(1.7), land - 0.09, 0.2, 1.1, 0.2, fx=True)
+
+# a low swipe on every scene change, moving left to right with the plane
+for c in cuts:
+    sw = swipe(1.0, 0.6)
+    put(sw, c - 0.6, np.linspace(-0.8, 0.8, len(sw)), 0.75, 0.15, fx=True)
+
+# call to action: the phone buzzes twice and chimes as the WhatsApp number appears
+cta = land + 1.35
+for k in (0, 1):
+    put(buzz(), cta + k * 0.32, -0.1, 0.22, 0.05, fx=True)
+put(ding(midi_hz := 440 * 2 ** ((86 - 69) / 12)), cta + 0.08, 0.15, 0.32, 0.35, fx=True)
+put(ding(midi_hz * 1.5), cta + 0.22, 0.15, 0.28, 0.35, fx=True)
 
 # ---------- master ----------
-mix = dry + reverb(send) * 0.8
-mix *= (np.minimum(1, t / 0.3) * np.minimum(1, (dur - t) / 1.2))[:, None]
-mix *= 10 ** (-14 / 20) / np.sqrt((mix**2).mean())  # loudness to about -14 dBFS RMS
+fade = (np.minimum(1, t / 0.3) * np.minimum(1, (dur - t) / 1.2))[:, None]
+voices = dry + reverb(send) * 0.8
+voices *= 10 ** (-21 / 20) / np.sqrt((voices**2).mean())  # the nasheed sits in the background
+effects = fx_dry + reverb(fx_send, length=1.4) * 0.6
+mix = (voices + effects) * fade
+mix *= 10 ** (-16 / 20) / np.sqrt((mix**2).mean())  # overall loudness, about -16 dBFS RMS before the limiter
 knee = 0.7
 mag = np.abs(mix)
 mix = np.where(mag < knee, mix, np.sign(mix) * (knee + (0.98 - knee) * np.tanh((mag - knee) / (0.98 - knee))))
