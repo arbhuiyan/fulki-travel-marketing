@@ -260,7 +260,7 @@ mix *= 10 ** (-14 / 20) / np.sqrt((mix**2).mean())  # loudness to about -14 dBFS
 knee = 0.7
 mag = np.abs(mix)
 mix = np.where(mag < knee, mix, np.sign(mix) * (knee + (0.98 - knee) * np.tanh((mag - knee) / (0.98 - knee))))
-mix *= 0.85  # headroom for the AAC encoder
+mix *= 0.75  # headroom for the AAC encoder (the flap transients overshoot)
 
 with wave.open(sys.argv[2], "wb") as f:
     f.setnchannels(2)
