@@ -1,4 +1,4 @@
-// Render tools/promo-video/promo.html to assets/video/fulki-promo-<lang>.mp4 (1080×1920, 30 fps, 10 s).
+// Render tools/promo-video/promo.html to assets/video/fulki-promo-<lang>.mp4 (1080×1920, 30 fps, 15 s).
 // Run: node tools/promo-video/render_promo.mjs [en|it ...]      (needs Playwright with Chromium, ffmpeg, python3 + numpy)
 //      node tools/promo-video/render_promo.mjs --stills en 1.5 4 8   (writes PNG stills to /tmp for checking a frame)
 import { chromium } from "playwright";
@@ -10,7 +10,7 @@ import path from "node:path";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
-const FPS = 30, SECONDS = 10, W = 1080, H = 1920;
+const FPS = 30, W = 1080, H = 1920;
 
 const args = process.argv.slice(2);
 const browser = await chromium.launch();
@@ -47,7 +47,8 @@ for (const lang of langs) {
 
   // per-frame count of flapping cells drives the clicks in the soundtrack
   const flaps = [];
-  for (let f = 0; f < FPS * SECONDS; f++) {
+  const seconds = await page.evaluate(() => TIMELINE.end);
+  for (let f = 0; f < FPS * seconds; f++) {
     flaps.push(await page.evaluate(t => render(t), f / FPS));
     const png = await page.screenshot({ type: "png" });
     if (!ff.stdin.write(png)) await new Promise(r => ff.stdin.once("drain", r));
@@ -56,7 +57,7 @@ for (const lang of langs) {
   await done;
 
   const cues = path.join(work, "cues.json"), audio = path.join(work, "audio.wav");
-  writeFileSync(cues, JSON.stringify({ fps: FPS, seconds: SECONDS, flaps, cuts: await page.evaluate(() => TIMELINE.cuts) }));
+  writeFileSync(cues, JSON.stringify({ fps: FPS, seconds, flaps, cuts: await page.evaluate(() => TIMELINE.cuts) }));
   execFileSync("python3", [path.join(here, "make_audio.py"), cues, audio], { stdio: "inherit" });
 
   const out = path.join(root, `assets/video/fulki-promo-${lang}.mp4`);

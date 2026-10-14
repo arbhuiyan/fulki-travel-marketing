@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Source of assets/video/fulki-promo-*.mp4, a 10 s vertical (1080×1920) promo.
+<!-- Source of assets/video/fulki-promo-*.mp4, a 15 s vertical (1080×1920) promo.
      The page is a pure function of time: window.render(t) draws the frame at t seconds.
      Render with: node tools/promo-video/render_promo.mjs   (?lang=en|it picks the copy) -->
 <html lang="en">
@@ -128,12 +128,13 @@ const L = COPY[lang];
 document.documentElement.lang = lang;
 
 // ---------- timeline ----------
-const T = { cuts: [0.8, 2.85, 4.9, 6.95], end: 10 };
+const T = { cuts: [1.0, 4.4, 7.8, 11.2], end: 15 };
 const C = T.cuts;
 const SCENES = [
-  { id: "asia",   rows: [["DAC", "DHAKA"], ["DEL", "DELHI"], ["BKK", "BANGKOK"]] },
-  { id: "africa", rows: [["CAI", "CAIRO"], ["DSS", "DAKAR"], ["NBO", "NAIROBI"]] },
-  { id: "me",     rows: [["DXB", "DUBAI"], ["DOH", "DOHA"],  ["JED", "JEDDAH"]] },
+  // two sets of departures per region; the board flips to the second set partway through the scene
+  { id: "asia",   sets: [[["DAC", "DHAKA"], ["DEL", "DELHI"], ["BKK", "BANGKOK"]], [["SYL", "SYLHET"], ["CMB", "COLOMBO"], ["MNL", "MANILA"]]] },
+  { id: "africa", sets: [[["CAI", "CAIRO"], ["DSS", "DAKAR"], ["NBO", "NAIROBI"]], [["ACC", "ACCRA"], ["LOS", "LAGOS"], ["TUN", "TUNIS"]]] },
+  { id: "me",     sets: [[["DXB", "DUBAI"], ["DOH", "DOHA"], ["JED", "JEDDAH"]], [["RUH", "RIYADH"], ["MCT", "MUSCAT"], ["AMM", "AMMAN"]]] },
 ];
 SCENES.forEach((s, i) => { s.start = T.cuts[i]; s.end = T.cuts[i + 1]; });
 
@@ -358,16 +359,18 @@ for (let r = 0; r < 3; r++) {
     if (c !== CODE) cells[r].push(d);
   }
 }
-const rowText = (s, r) => s ? (s.rows[r][0] + s.rows[r][1].padEnd(CITY)).slice(0, CODE + CITY) : " ".repeat(CODE + CITY);
+// every board change: each scene's first set at its start, its second set 1.65 s later
+const BOARDS = SCENES.flatMap(sc => sc.sets.map((rows, j) => ({ at: sc.start + j * 1.65, rows })));
+const rowText = (b, r) => b ? (b.rows[r][0] + b.rows[r][1].padEnd(CITY)).slice(0, CODE + CITY) : " ".repeat(CODE + CITY);
 
 function flapChar(t, r, c) {
-  // which scene's text is (or is becoming) current
+  // which board is (or is becoming) current
   let k = -1;
-  for (let i = 0; i < SCENES.length; i++) if (t >= SCENES[i].start - 0.05) k = i;
+  for (let i = 0; i < BOARDS.length; i++) if (t >= BOARDS[i].at - 0.05) k = i;
   if (k < 0) return [" ", false];
-  const target = rowText(SCENES[k], r)[c];
-  const prev = rowText(SCENES[k - 1], r)[c];
-  const s = SCENES[k].start + 0.05 + r * 0.12 + c * 0.028;
+  const target = rowText(BOARDS[k], r)[c];
+  const prev = rowText(BOARDS[k - 1], r)[c];
+  const s = BOARDS[k].at + 0.05 + r * 0.12 + c * 0.028;
   const e = s + 0.28 + hash(r, c, k) * 0.3;
   if (t < s) return [prev, false];
   if (t >= e) return [target, false];
