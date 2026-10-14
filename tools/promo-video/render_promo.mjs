@@ -1,5 +1,5 @@
 // Render tools/promo-video/promo.html to assets/video/fulki-promo-<lang>.mp4 (1080×1920, 30 fps, 15 s).
-// Run: node tools/promo-video/render_promo.mjs [--sound alaap|mawwal|callresponse|raga|uzunhava|hijaz|bayati] [en|it ...]
+// Run: node tools/promo-video/render_promo.mjs [--sound alaap|mawwal|callresponse|raga|airport|none|uzunhava|hijaz|bayati] [en|it ...]
 //      (needs Playwright with Chromium, ffmpeg, python3 + numpy; the soundtrack variants are described in make_audio.py)
 //      node tools/promo-video/render_promo.mjs --stills en 1.5 4 8   (writes PNG stills to /tmp for checking a frame)
 import { chromium } from "playwright";

@@ -14,6 +14,10 @@ Usage: python3 make_audio.py cues.json out.wav [variant]
   mawwal        Middle Eastern: one open voice on "aa"/"ey" in maqam Hijaz, over a soft low "oo"
   callresponse  African: a lead calls "e-o-e" and a small group answers in harmony, on a pentatonic scale
   raga          South Asian: a raga alaap in Raag Yaman on open "aa", gliding between notes over a soft Sa-Pa
+  Other backgrounds:
+  airport       no voice: an airport terminal instead (hall hum, crowd murmur, footsteps, suitcases
+                rolling past, the announcement chime, a jet taking off as the logo lands)
+  none          no background at all: only the regional soundscapes and the sound effects
   Hummed or more ornate:
   alaap   South Asian free-voice humming, like a raga alaap or a Bengali bhatiyali: one voice in free
           rhythm on a pentatonic scale (Sa Re Ga Pa Dha), gliding slowly between notes over a hummed
@@ -50,6 +54,7 @@ fx_send = np.zeros((n, 2))
 SCALE = {"hijaz": [0, 1, 4, 5, 7, 8, 10], "bayati": [0, 1.5, 3, 5, 7, 8, 10], "alaap": [0, 2, 4, 7, 9],
          # makam Hüseyni in Turkish (53-comma) tuning: the second sits 8 commas up, between E-flat and E
          "uzunhava": [0, 1.81, 2.94, 4.98, 7.02, 9.06, 9.96],
+         "airport": [0, 2, 4, 5, 7, 9, 11], "none": [0, 2, 4, 5, 7, 9, 11],
          "mawwal": [0, 1, 4, 5, 7, 8, 10], "callresponse": [0, 2, 4, 7, 9], "raga": [0, 2, 4, 6, 7, 9, 11]}[VARIANT]
 TONIC = 50  # D3
 
@@ -579,11 +584,72 @@ for k in (0, 1):
 put(ding(midi_hz := 440 * 2 ** ((86 - 69) / 12)), cta + 0.08, 0.15, 0.32, 0.35, fx=True)
 put(ding(midi_hz * 1.5), cta + 0.22, 0.15, 0.28, 0.35, fx=True)
 
+# ---------- an airport terminal, as the background instead of a voice ----------
+def airport():
+    # the hall itself: air handling and the low roar of a big room
+    for ch in range(2):
+        hall = band_noise(n, 30, 220, 1.8) * 0.7 + band_noise(n, 200, 1200, 1.4) * 0.15
+        dry[:, ch] += hall * 0.5
+        send[:, ch] += hall * 0.1
+    # crowd murmur: many overlapping speech-shaped streams, each with its own syllable rhythm and pauses
+    for k in range(14):
+        syll = np.abs(band_noise(n, 3, 7, 0.0)) ** 1.5
+        talk = np.clip(band_noise(n, 0.15, 0.6, 0.0) * 2 + 0.3, 0, 1)
+        stream = band_noise(n, 220, 2600, 1.1) * syll * talk
+        put(stream, 0, rng.uniform(-0.8, 0.8), 0.18, 0.9)
+    # a few distant voices with speech-like intonation, deep in the hall's echo
+    for _ in range(26):
+        s0 = rng.uniform(0, dur - 1.5)
+        base = rng.uniform(-14, 2)  # semitones from D3: low and high speaking voices
+        notes, x = [], s0
+        for j in range(int(rng.integers(3, 7))):
+            ln = rng.uniform(0.09, 0.2)
+            notes.append((x, x + ln * 0.85, 0, rng.choice(list("aeou"))))
+            x += ln
+        drift_ = np.linspace(1.5, -2.0, len(notes)) + rng.normal(0, 1.2, len(notes))  # falling, like a sentence
+        for (a_, b_, d_, v_), sh in zip(notes, drift_):
+            sing([(a_, b_, d_, v_)], a_, b_ + 0.15, shift=base + sh, vowel=v_, size=rng.uniform(0.95, 1.2), vib=0,
+                 glide=25, breath=0.08, pan=rng.uniform(-0.9, 0.9), gain=rng.uniform(0.04, 0.09), verb=1.0)
+    # footsteps crossing the hall
+    for start in (0.6, 7.2, 13.4):
+        pan0 = rng.choice([-1, 1]) * 0.8
+        for j in range(9):
+            step = band_noise(int(0.04 * SR), 300, 5000, 0.8) * np.exp(-np.arange(int(0.04 * SR)) / SR * 140)
+            put(step, start + j * 0.52 + rng.uniform(-0.02, 0.02), pan0 * (1 - j / 4.5), 0.09 * (1 - abs(j - 4) / 6), 0.5)
+    # suitcases rolling past: wheel rumble plus a tick at every tile seam
+    for start, length, rate in ((1.2, 3.2, 7.5), (8.6, 2.8, 9.0), (15.8, 3.0, 8.0)):
+        ln = int(length * SR)
+        x = np.arange(ln) / SR
+        pass_env = np.sin(np.pi * x / length) ** 2
+        roll = band_noise(ln, 80, 900, 1.3) * 0.5
+        ticks = np.zeros(ln)
+        for tk in np.arange(0, length, 1 / rate):
+            i = int(tk * SR)
+            tick = band_noise(int(0.006 * SR), 400, 3500, 0.6) * np.exp(-np.arange(int(0.006 * SR)) / SR * 700)
+            ticks[i : i + len(tick)] += tick[: ln - i]
+        put((roll + ticks) * pass_env, start, np.linspace(-0.8, 0.8, ln) * rng.choice([-1, 1]), 0.35, 0.4)
+    # the announcement chime as the video opens: three soft falling tones, ringing in the hall
+    for k, semi in enumerate((7, 4, 0)):
+        put(ding(440 * 2 ** ((74 + semi - 69) / 12)), 0.15 + k * 0.42, 0.0, 0.35, 1.0)
+    # a jet taking off outside, building as FULKI flips in and peaking as the plane lands
+    ln = int((dur - c3 + 0.5) * SR)
+    x = np.arange(ln) / SR
+    swell = np.clip(x / (land - c3 + 0.5), 0, 1) ** 2 * np.exp(-np.clip(x - (land - c3 + 0.5), 0, None) * 0.7)
+    for ch, pan in ((0, -0.4), (1, 0.4)):
+        jet = band_noise(ln, 50, 2200, 1.7) + 0.2 * band_noise(ln, 2500, 6000, 0.5)
+        put(jet * swell, c3 - 0.5, pan, 0.35, 0.3)
+
+
+if VARIANT == "airport":
+    airport()
+
 # ---------- master ----------
 fade = (np.minimum(1, t / 0.3) * np.minimum(1, (dur - t) / 1.2))[:, None]
-VOICE_LEVEL = -27 if VARIANT in ("mawwal", "callresponse", "raga") else -23  # dBFS RMS: the open voices sit lower still
-voices = dry + reverb(send) * 0.8
-voices *= 10 ** (VOICE_LEVEL / 20) / np.sqrt((voices**2).mean())  # the voices sit low, in the background
+# dBFS RMS of the background layer: the open voices sit lower still, the airport between the two
+VOICE_LEVEL = {"mawwal": -27, "callresponse": -27, "raga": -27, "airport": -25}.get(VARIANT, -23)
+voices = dry + reverb(send, length=3.5 if VARIANT == "airport" else 2.8) * 0.8
+if VARIANT != "none":
+    voices *= 10 ** (VOICE_LEVEL / 20) / np.sqrt((voices**2).mean())  # the background sits low
 amb_active = scene_env(c0, c3) > 0.5
 amb *= 10 ** ((VOICE_LEVEL - 5) / 20) / np.sqrt((amb[amb_active] ** 2).mean())  # the soundscapes sit below the voices
 effects = fx_dry + reverb(fx_send, length=1.4) * 0.6
