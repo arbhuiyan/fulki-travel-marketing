@@ -3,13 +3,13 @@
 A lead voice hums a maqam melody (with vibrato, slides and grace notes), a group of voices joins
 it scene by scene, a low hummed drone holds the tonic, and a soft hummed "dum" pulse gives the
 middle scenes their drive. The voices climb as FULKI flips in, land on the tonic with the plane,
-and fade out under the contact details. The board's split-flap clicks sit quietly underneath.
+and fade out under the contact details. Every card that flips makes a mechanical split-flap clack.
 
 Usage: python3 make_audio.py cues.json out.wav [variant]
   hijaz   maqam Hijaz on D: the classic, uplifting sound (default)
   bayati  maqam Bayati on D, with its quarter-tone second: softer and more devotional
 cues.json is written by render_promo.mjs: frame rate, length, scene cuts, logo landing time,
-and how many board cells flap in each frame.
+how many board cells flap in each frame, and when each FULKI card flips.
 """
 import json
 import sys
@@ -225,12 +225,33 @@ for k, (octv, deg) in enumerate(chord):
     sing([(land, dur - 0.2, deg)], land - 0.02, dur, shift=octv + 0.05 * (-1) ** k, size=1.0 + 0.04 * k,
          vib=0.5, late=0.01 * k, breath=0.05, pan=-0.6 + 0.4 * k, gain=0.28, verb=0.85)
 
-# split-flap clicks from the board and the logo, kept low under the voices
+# split-flap mechanics: each card snaps over with a plastic clack, then taps once as it settles
+def clack(size=1.0):
+    """One flap falling: a sharp snap, a short ring from the card, a soft thud from the frame."""
+    x = np.arange(int(0.06 * SR)) / SR
+    snap = rng.normal(0, 1, len(x)) * np.exp(-x * 900)
+    snap -= np.convolve(snap, np.ones(8) / 8, mode="same")  # keep only the bright edge
+    f1, f2 = rng.uniform(1600, 2000) / size, rng.uniform(2900, 3500) / size
+    ring = 0.5 * np.sin(2 * np.pi * f1 * x) * np.exp(-x * 160) + 0.3 * np.sin(2 * np.pi * f2 * x) * np.exp(-x * 220)
+    thud = 0.6 * size * np.sin(2 * np.pi * 170 / size * x) * np.exp(-x * 70)
+    one = snap + ring + thud
+    out = np.zeros(len(x) + int(0.02 * SR))
+    out[: len(one)] += one
+    lag = int(rng.uniform(0.008, 0.014) * SR)  # the settle tap
+    out[lag : lag + len(one)] += 0.35 * one
+    return out
+
+
+# the departures board: every cycling cell flips once per frame (a busy clatter, capped per frame)
 for fi, count in enumerate(cues["flaps"]):
-    for _ in range(min(count, 8)):
-        x = np.arange(int(0.01 * SR)) / SR
-        click = rng.normal(0, 1, len(x)) * np.exp(-x * 700) + 0.3 * np.sin(2 * np.pi * 2400 * x) * np.exp(-x * 400)
-        put(click, fi / fps + rng.uniform(0, 1 / fps), rng.uniform(-0.5, 0.5), 0.012, 0.05)
+    if fi / fps >= c3 - 0.1:
+        break
+    for _ in range(min(count, 6)):
+        put(clack(0.9), fi / fps + rng.uniform(0, 1 / fps), rng.uniform(-0.6, 0.6), 0.3 * rng.uniform(0.6, 1), 0.06)
+# the big FULKI cards: heavier, deeper clacks exactly on each flip; the plane lands with the loudest
+for k, at in enumerate(sorted(cues.get("logoFlips", []))):
+    put(clack(1.5), at, rng.uniform(-0.4, 0.4), 1.1, 0.12)
+put(clack(1.7), land - 0.09, 0.2, 1.2, 0.2)
 
 # ---------- master ----------
 mix = dry + reverb(send) * 0.8

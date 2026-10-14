@@ -60,7 +60,8 @@ for (const lang of langs) {
   await done;
 
   const cues = path.join(work, "cues.json"), audio = path.join(work, "audio.wav");
-  writeFileSync(cues, JSON.stringify({ fps: FPS, seconds, flaps, cuts: await page.evaluate(() => TIMELINE.cuts), land: await page.evaluate(() => LANDED) }));
+  writeFileSync(cues, JSON.stringify({ fps: FPS, seconds, flaps, cuts: await page.evaluate(() => TIMELINE.cuts), land: await page.evaluate(() => LANDED),
+    logoFlips: await page.evaluate(() => LOGO_FLAPS.flatMap(f => f.seq.slice(1).map(([at]) => at))) }));
   execFileSync("python3", [path.join(here, "make_audio.py"), cues, audio, sound], { stdio: "inherit" });
 
   const out = path.join(root, `assets/video/fulki-promo-${lang}.mp4`);
