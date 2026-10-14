@@ -1,5 +1,6 @@
 // Render tools/promo-video/promo.html to assets/video/fulki-promo-<lang>.mp4 (1080×1920, 30 fps, 15 s).
-// Run: node tools/promo-video/render_promo.mjs [en|it ...]      (needs Playwright with Chromium, ffmpeg, python3 + numpy)
+// Run: node tools/promo-video/render_promo.mjs [--sound rhythm|monsoon|water|ocean] [en|it ...]
+//      (needs Playwright with Chromium, ffmpeg, python3 + numpy; the sound variants are described in make_audio.py)
 //      node tools/promo-video/render_promo.mjs --stills en 1.5 4 8   (writes PNG stills to /tmp for checking a frame)
 import { chromium } from "playwright";
 import { spawn, execFileSync } from "node:child_process";
@@ -13,6 +14,8 @@ const root = path.resolve(here, "../..");
 const FPS = 30, W = 1080, H = 1920;
 
 const args = process.argv.slice(2);
+const soundAt = args.indexOf("--sound");
+const sound = soundAt >= 0 ? args.splice(soundAt, 2)[1] : "rhythm";
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: W, height: H } });
 
@@ -57,8 +60,8 @@ for (const lang of langs) {
   await done;
 
   const cues = path.join(work, "cues.json"), audio = path.join(work, "audio.wav");
-  writeFileSync(cues, JSON.stringify({ fps: FPS, seconds, flaps, cuts: await page.evaluate(() => TIMELINE.cuts) }));
-  execFileSync("python3", [path.join(here, "make_audio.py"), cues, audio], { stdio: "inherit" });
+  writeFileSync(cues, JSON.stringify({ fps: FPS, seconds, flaps, cuts: await page.evaluate(() => TIMELINE.cuts), land: await page.evaluate(() => LANDED) }));
+  execFileSync("python3", [path.join(here, "make_audio.py"), cues, audio, sound], { stdio: "inherit" });
 
   const out = path.join(root, `assets/video/fulki-promo-${lang}.mp4`);
   execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", video, "-i", audio, "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
