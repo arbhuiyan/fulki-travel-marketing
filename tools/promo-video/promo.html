@@ -41,11 +41,22 @@
   .cell.gap::after { display: none; }
   .cell.flip { background: linear-gradient(#34302c 0 50%, #1c1917 50% 100%); }
 
-  .outro { top: 0; height: 1920px; display: flex; flex-direction: column; align-items: center; padding-top: 360px; text-align: center; }
-  .outro .logo { width: 820px; }
-  .outro .tag { margin-top: 70px; font: 800 74px/1.05 "Outfit", sans-serif; letter-spacing: -0.03em; padding: 0 70px; }
+  .outro { top: 0; height: 1920px; display: flex; flex-direction: column; align-items: center; padding-top: 500px; text-align: center; }
+  .flaps { display: flex; gap: 14px; }
+  .fc { position: relative; width: 138px; height: 200px; perspective: 700px; filter: drop-shadow(0 18px 30px rgba(0,0,0,.5)); }
+  .fc .half { position: absolute; left: 0; right: 0; height: 100px; overflow: hidden; backface-visibility: hidden; }
+  .fc .t { top: 0; border-radius: 16px 16px 0 0; background: #292524; transform-origin: 50% 100%; }
+  .fc .b { top: 100px; border-radius: 0 0 16px 16px; background: #1c1917; transform-origin: 50% 0; border-top: 3px solid #0c0a09; }
+  .fc .ft, .fc .fb { z-index: 2; visibility: hidden; }
+  .fc span { display: block; height: 200px; font: 800 150px/200px "Outfit", sans-serif; text-align: center; color: #fafaf9; }
+  .fc .b span { margin-top: -103px; }
+  .fc span svg { display: block; width: 112px; height: 112px; margin: 44px auto 0; }
+  .contrail { margin-top: 34px; width: 880px; height: 6px; border-radius: 3px; transform-origin: left center;
+    background: linear-gradient(90deg, rgba(234,88,12,0), rgba(234,88,12,.75) 55%, #ea580c); }
+  .outro .tt { margin-top: 34px; font: 600 48px/1 "Manrope", sans-serif; letter-spacing: .42em; padding-left: .42em; color: #e7e5e4; }
+  .outro .tag { margin-top: 110px; font: 800 74px/1.05 "Outfit", sans-serif; letter-spacing: -0.03em; padding: 0 70px; }
   .outro .tag em { font-style: normal; background: linear-gradient(100deg, #ea580c, #f59e0b); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .outro .sub { margin-top: 26px; font: 600 42px/1.3 "Manrope", sans-serif; color: #d6d3d1; }
+  .outro .sub { margin-top: 30px; font: 700 40px/1.3 "Manrope", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #fdba74; }
   .outro .pill { margin-top: 70px; display: inline-flex; align-items: center; gap: 18px; padding: 26px 44px; border-radius: 999px;
     background: #ea580c; font: 800 52px/1 "Manrope", sans-serif; box-shadow: 0 20px 60px rgba(234,88,12,.4); }
   .outro .pill svg { width: 54px; height: 54px; }
@@ -68,7 +79,6 @@
     <mask id="crescent"><rect width="1080" height="1920" fill="#fff"/><circle cx="952" cy="186" r="44" fill="#000"/></mask>
     <g id="moon"><circle cx="930" cy="200" r="48" fill="#fef3c7" mask="url(#crescent)"/></g>
     <g id="sun"><circle id="sunHalo" cx="540" cy="1260" r="420" fill="url(#sunGlow)"/><circle id="sunDisc" cx="540" cy="1260" r="180" fill="#fff7ed"/></g>
-    <g id="birds" fill="none" stroke-width="5" stroke-linecap="round"></g>
     <g id="scenes"></g>
     <filter id="tint"><feFlood flood-color="#ea580c"/><feComposite in2="SourceAlpha" operator="in"/></filter>
     <g id="skyline" filter="url(#tint)">
@@ -96,7 +106,9 @@
   </div>
 
   <div class="layer outro" id="outro">
-    <img class="logo" id="outLogo" src="../../assets/logo/fulki-travel-tours-reversed.svg" alt="Fulki Travel &amp; Tours" />
+    <div class="flaps" id="logoFlaps"></div>
+    <div class="contrail" id="outTrail"></div>
+    <div class="tt" id="outTT">TRAVEL &amp; TOURS</div>
     <div class="tag" id="outTag"></div>
     <div class="sub" id="outSub"></div>
     <div><span class="pill" id="outPill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/></svg>+39 0444 022494</span></div>
@@ -107,16 +119,17 @@
 <script>
 const COPY = {
   en: { intro: "Where to <em>next?</em>", kicker: "Fly to", regions: ["Asia", "Africa", "Middle East"], board: "DEPARTURES",
-        tag: "Flights to <em>Asia, Africa</em> &amp; the <em>Middle East</em>", sub: "Booked by a real person, in Arzignano" },
+        tag: "The world is waiting.<br><em>Your seat is ready.</em>", sub: "Asia · Africa · Middle East" },
   it: { intro: "Dove si <em>vola?</em>", kicker: "Vola in", regions: ["Asia", "Africa", "Medio Oriente"], board: "PARTENZE",
-        tag: "Voli per <em>Asia, Africa</em> e <em>Medio Oriente</em>", sub: "Con una persona vera, ad Arzignano" },
+        tag: "Il mondo ti aspetta.<br><em>Il tuo posto è pronto.</em>", sub: "Asia · Africa · Medio Oriente" },
 };
 const lang = new URLSearchParams(location.search).get("lang") === "it" ? "it" : "en";
 const L = COPY[lang];
 document.documentElement.lang = lang;
 
 // ---------- timeline ----------
-const T = { introEnd: 0.9, cuts: [0.9, 3.2, 5.5, 7.8], end: 10 };
+const T = { cuts: [0.8, 2.85, 4.9, 6.95], end: 10 };
+const C = T.cuts;
 const SCENES = [
   { id: "asia",   rows: [["DAC", "DHAKA"], ["DEL", "DELHI"], ["BKK", "BANGKOK"]] },
   { id: "africa", rows: [["CAI", "CAIRO"], ["DSS", "DAKAR"], ["NBO", "NAIROBI"]] },
@@ -132,7 +145,7 @@ const SKY = {
   me:     ["#070b1f", "#3b1d5e", "#f59e0b"],
   outro:  ["#0c0a09", "#1c1917", "#2a0f05"],
 };
-const SKY_KEYS = [[0, "night"], [0.9, "asia"], [3.2, "africa"], [5.5, "me"], [7.8, "outro"]];
+const SKY_KEYS = [[0, "night"], [C[0], "asia"], [C[1], "africa"], [C[2], "me"], [C[3], "outro"]];
 
 // ---------- helpers ----------
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -166,34 +179,46 @@ function minaret(cx, base, top, w, f) {
   return d;
 }
 
+function frame(x, y, w, h, bars, th = 12) {
+  // an open grille column: outline plus vertical bars (drawn with fill-rule evenodd)
+  let d = rect(x, y, w, h) + rect(x + th, y + th, w - 2 * th, h - th);
+  for (let i = 1; i <= bars; i++) d += rect(x + th + (w - 2 * th) * i / (bars + 1) - 3, y + th, 6, h - th);
+  return d;
+}
+
 function asia(back, front, accent) {
-  // Mount Fuji with its snow cap, and soft hills
-  el("path", { d: "M520 1780L770 1420Q830 1392 892 1420L1140 1780Z", fill: back }, this.b);
-  el("path", { d: "M770 1420Q830 1392 892 1420L930 1474L902 1462L874 1488L846 1462L818 1490L790 1462L752 1470Z", fill: "#fdf2f8", opacity: .55 }, this.b);
-  el("path", { d: "M-20 1780Q120 1600 300 1680T620 1660T1100 1700V1800H-20Z", fill: back, opacity: .8 }, this.b);
+  el("path", { d: "M-20 1780Q120 1620 300 1690T620 1670T1100 1690V1800H-20Z", fill: back, opacity: .8 }, this.b);
+  // Shaheed Minar, Dhaka: the red sun behind five grille columns, the tallest bowing forward
+  el("circle", { cx: 470, cy: 1470, r: 165, fill: "#f42a41", transform: "translate(470 1772) scale(1.15) translate(-470 -1772)" }, this.b);
+  let m = rect(200, 1748, 540, 24) + rect(222, 1728, 496, 22);
+  m += frame(232, 1600, 66, 128, 2) + frame(642, 1600, 66, 128, 2);
+  m += frame(316, 1530, 76, 198, 2) + frame(548, 1530, 76, 198, 2);
+  m += frame(410, 1440, 120, 288, 3);
+  m += "M404 1440L536 1440L552 1336L388 1336Z" + "M422 1428L518 1428L532 1350L408 1350Z";
+  for (const f of [.25, .5, .75]) { const xb = 422 + 96 * f, xt = 408 + 124 * f; m += `M${xb - 3} 1428L${xb + 3} 1428L${xt + 3} 1350L${xt - 3} 1350Z`; }
+  el("path", { d: m, fill: front, "fill-rule": "evenodd", transform: "translate(470 1772) scale(1.15) translate(-470 -1772)" }, this.f);
+
   let d = rect(-20, 1770, 1120, 200);
-  // Taj Mahal: plinth, hall, iwan, drum, onion dome, chhatris, four minarets
-  d += rect(290, 1712, 500, 60) + "M392 1712V1566L412 1546H668L688 1566V1712Z";
-  d += rect(468, 1520, 144, 30) + onion(540, 1522, 176, 196) + rect(538, 1300, 4, 34);
-  for (const x of [428, 652]) d += rect(x - 22, 1516, 44, 32) + onion(x, 1518, 54, 52) + rect(x - 1.5, 1452, 3, 18);
-  for (const x of [318, 762]) d += minaret(x, 1712, 1450, 26, { balconies: [1640, 1574, 1508], cap: "dome" });
   // pagoda (left)
-  const pc = 120; let y = 1770;
+  const pc = 100; let y = 1770;
   for (let i = 0; i < 5; i++) {
-    const w = 220 - i * 34, h = 78 - i * 6;
+    const w = 210 - i * 32, h = 76 - i * 6;
     d += rect(pc - w * .3, y - h + 20, w * .6, h - 20);
     const ey = y - h + 22;
     d += `M${pc - w / 2 - 22} ${ey - 12}Q${pc - w / 2} ${ey + 4} ${pc - w / 2 + 18} ${ey}L${pc + w / 2 - 18} ${ey}Q${pc + w / 2} ${ey + 4} ${pc + w / 2 + 22} ${ey - 12}L${pc + w * .26} ${ey - 30}L${pc - w * .26} ${ey - 30}Z`;
     y = ey - 30;
   }
   d += rect(pc - 3, y - 80, 6, 82);
-  // Thai chedi (right)
-  d += rect(880, 1724, 140, 46) + "M892 1726C892 1650 928 1616 950 1606C972 1616 1008 1650 1008 1726Z";
-  for (let i = 0; i < 4; i++) d += rect(936 + i * 2, 1580 - i * 22, 28 - i * 4, 14);
-  d += tri(940, 960, 950, 1380, 1500);
   el("path", { d, fill: front }, this.f);
-  // the Taj's central iwan, lit from behind
-  el("path", { d: "M506 1712V1620Q506 1586 540 1572Q574 1586 574 1620V1712Z", fill: accent, opacity: .55 }, this.f);
+
+  // Taj Mahal (right): plinth, hall, drum, onion dome, chhatris, four minarets
+  const taj = el("g", { transform: "translate(905 1772) scale(.52) translate(-540 -1772)" }, this.f);
+  let tj = rect(290, 1712, 500, 60) + "M392 1712V1566L412 1546H668L688 1566V1712Z";
+  tj += rect(468, 1520, 144, 30) + onion(540, 1522, 176, 196) + rect(538, 1300, 4, 34);
+  for (const x of [428, 652]) tj += rect(x - 22, 1516, 44, 32) + onion(x, 1518, 54, 52) + rect(x - 1.5, 1452, 3, 18);
+  for (const x of [318, 762]) tj += minaret(x, 1712, 1450, 26, { balconies: [1640, 1574, 1508], cap: "dome" });
+  el("path", { d: tj, fill: front }, taj);
+  el("path", { d: "M506 1712V1620Q506 1586 540 1572Q574 1586 574 1620V1712Z", fill: accent, opacity: .55 }, taj);
 }
 
 function africa(back, front, accent) {
@@ -206,22 +231,16 @@ function africa(back, front, accent) {
     el("path", { d: tri(x1, x2, ax, ay, 1772), fill: front }, this.f);
     el("path", { d: `M${ax} ${ay}L${x2} 1772L${ax + (x2 - ax) * .25} 1772Z`, fill: accent, opacity: .28 }, this.f);
   }
-  let d = rect(-20, 1770, 1120, 200);
-  // acacia: trunk, branches, flat canopy
-  d += "M806 1772C812 1690 806 1620 822 1540L834 1540C824 1620 832 1690 830 1772Z";
-  d += "M822 1560C790 1520 752 1490 700 1466L708 1458C760 1478 800 1508 830 1548Z";
-  d += "M826 1556C850 1510 900 1484 960 1462L964 1472C910 1494 866 1520 834 1560Z";
-  el("path", { d, fill: front }, this.f);
-  for (const [cx, cy, rx, ry] of [[736, 1452, 80, 28], [800, 1432, 120, 36], [910, 1446, 110, 32], [990, 1464, 70, 22], [850, 1418, 80, 24]])
-    el("ellipse", { cx, cy, rx, ry, fill: front }, this.f);
-  // giraffe browsing at the canopy edge
-  const g = el("g", { fill: front, transform: "translate(486 40)" }, this.f);
-  el("path", { d: "M-50 1648C-60 1612 -20 1592 30 1594C70 1596 92 1606 96 1630C98 1650 80 1662 40 1664C0 1666 -40 1664 -50 1648Z" }, g);
-  el("path", { d: "M62 1612L110 1474L132 1478L94 1622Z" }, g);
-  el("path", { d: "M104 1488C112 1466 134 1460 156 1470C166 1476 166 1486 156 1490C140 1494 124 1494 112 1500Z" }, g);
-  el("path", { d: "M114 1470L110 1448M124 1468L124 1446", stroke: front, "stroke-width": 5, "stroke-linecap": "round" }, g);
-  el("path", { d: "M-50 1630Q-74 1650 -70 1690", stroke: front, "stroke-width": 5, fill: "none", "stroke-linecap": "round" }, g);
-  for (const [x, lean] of [[-36, -6], [-14, 4], [52, -4], [76, 8]]) el("path", { d: `M${x - 7} 1650L${x + lean - 4} 1772L${x + lean + 4} 1772L${x + 7} 1650Z` }, g);
+  el("path", { d: rect(-20, 1770, 1120, 200), fill: front }, this.f);
+  // acacias: trunk, branches, flat canopy
+  for (const [cx, sc] of [[818, 1], [586, .62]]) {
+    const g = el("g", { fill: front, transform: `translate(${cx} 1772) scale(${sc}) translate(-818 -1772)` }, this.f);
+    el("path", { d: "M806 1772C812 1690 806 1620 822 1540L834 1540C824 1620 832 1690 830 1772Z" +
+      "M822 1560C790 1520 752 1490 700 1466L708 1458C760 1478 800 1508 830 1548Z" +
+      "M826 1556C850 1510 900 1484 960 1462L964 1472C910 1494 866 1520 834 1560Z" }, g);
+    for (const [ex, ey, rx, ry] of [[716, 1452, 80, 28], [800, 1432, 120, 36], [910, 1446, 110, 32], [990, 1464, 70, 22], [850, 1418, 80, 24]])
+      el("ellipse", { cx: ex, cy: ey, rx, ry }, g);
+  }
   // grass tufts
   let gr = "";
   for (let i = 0; i < 26; i++) { const x = i * 43 + hash(i, 7) * 20, h = 14 + hash(i, 9) * 22; gr += `M${x} 1772L${x + 4} ${1772 - h}L${x + 8} 1772Z`; }
@@ -278,21 +297,53 @@ SCENES.forEach((s, i) => {
   u.setAttribute("transform", `translate(${i * 360} ${1772 * (1 - 1 / 3)}) scale(${1 / 3})`);
 });
 
-// stars (Middle East night) and birds (Africa sunset)
+// stars (Middle East night)
 const STARS = [];
 for (let i = 0; i < 70; i++) {
   const c = el("circle", { cx: hash(i, 1) * 1080, cy: hash(i, 2) * 1150, r: 1.5 + hash(i, 3) * 2.5, fill: "#fff" }, $("stars"));
   STARS.push([c, hash(i, 4) * 6.28, .4 + hash(i, 5) * .6]);
 }
-const BIRDS = [];
-for (let i = 0; i < 6; i++) BIRDS.push([el("path", { stroke: "#1c0a03" }, $("birds")), 180 + hash(i, 11) * 360, 1060 + hash(i, 12) * 220, .7 + hash(i, 13) * .6, hash(i, 14) * 6]);
-
 // ---------- text ----------
 $("introText").innerHTML = L.intro;
 $("kicker").textContent = L.kicker;
 $("boardHead").textContent = L.board;
 $("outTag").innerHTML = L.tag;
 $("outSub").textContent = L.sub;
+
+// outro: F U L K I flip in one after another, then the plane lands in the last flap
+const PLANE = '<svg viewBox="0 0 24 24"><g transform="rotate(45 12 12)"><path fill="#ea580c" stroke="#ea580c" stroke-width="1" stroke-linejoin="round" d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></g></svg>';
+const LOGO = ["F", "U", "L", "K", "I", "✈"], FLIP = 0.075, STEP = 0.08;
+const glyph = ch => ch === "✈" ? PLANE : ch;
+const LOGO_FLAPS = LOGO.map((target, k) => {
+  const box = document.createElement("div"); box.className = "fc"; $("logoFlaps").appendChild(box);
+  const part = cls => { const h = document.createElement("div"); h.className = "half " + cls; h.appendChild(document.createElement("span")); box.appendChild(h); return h; };
+  const start = C[3] + 0.15 + k * 0.13, n = 3 + k, seq = [[-1, " "]];
+  for (let j = 0; j < n; j++) seq.push([start + j * STEP, "ABCDEFGHJKLMNOPRSTUVWXYZ"[Math.floor(hash(k, j, 5) * 24)]]);
+  seq.push([start + n * STEP, target]);
+  return { t: part("t"), b: part("b"), ft: part("t ft"), fb: part("b fb"), seq };
+});
+const LANDED = LOGO_FLAPS[5].seq.at(-1)[0] + FLIP;
+function put(h, ch) { if (h.dataset.ch !== ch) { h.dataset.ch = ch; h.firstChild.innerHTML = glyph(ch); } }
+function flapLogo(t) {
+  let moving = 0;
+  for (const f of LOGO_FLAPS) {
+    let i = 0;
+    while (i + 1 < f.seq.length && f.seq[i + 1][0] <= t) i++;
+    const next = f.seq[i][1], prev = f.seq[Math.max(0, i - 1)][1], p = i ? (t - f.seq[i][0]) / FLIP : 1;
+    put(f.t, next); put(f.ft, prev); put(f.fb, next);
+    if (p >= 1) { put(f.b, next); f.ft.style.visibility = f.fb.style.visibility = "hidden"; continue; }
+    moving++;
+    put(f.b, prev);
+    const top = p < .5;
+    f.ft.style.visibility = top ? "visible" : "hidden";
+    f.fb.style.visibility = top ? "hidden" : "visible";
+    f.ft.style.transform = `rotateX(${-180 * p}deg)`;
+    f.fb.style.transform = `rotateX(${(1 - p) * 180}deg)`;
+    f.ft.style.filter = `brightness(${1 - p})`;
+    f.fb.style.filter = `brightness(${0.4 + 0.6 * (2 * p - 1)})`;
+  }
+  return moving;
+}
 
 // departures board: 3 rows of [code(3)] [gap] [city(8)]
 const CODE = 3, CITY = 8, CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -336,7 +387,7 @@ window.render = function (t) {
   [0, 1, 2].forEach(i => $("sky" + i).setAttribute("stop-color", mix(SKY[a[1]][i], SKY[b[1]][i], k)));
 
   // ember glow: intro and outro only
-  $("ember").setAttribute("opacity", Math.max(1 - prog(t, 0.7, 1.1), prog(t, 7.7, 8.2)) * (0.85 + 0.15 * Math.sin(t * 2)));
+  $("ember").setAttribute("opacity", Math.max(1 - prog(t, C[0] - 0.2, C[0] + 0.2), prog(t, C[3] - 0.1, C[3] + 0.4)) * (0.85 + 0.15 * Math.sin(t * 2)));
 
   // scenes rise in from below and sink away
   for (const s of SCENES) {
@@ -350,28 +401,18 @@ window.render = function (t) {
     s.back.setAttribute("transform", `translate(${-drift * .4} ${(1 - pin) * 340 + pout * 340})`);
   }
 
-  // sun: dawn over Asia, big setting sun over Africa
-  const sA = prog(t, 0.8, 1.4) * (1 - prog(t, 3.0, 3.4));
-  const sB = prog(t, 3.1, 3.6) * (1 - prog(t, 5.3, 5.7));
-  const sunR = 170 + 110 * prog(t, 3.0, 3.6), sunY = 1300 - 70 * prog(t, 0.8, 3.2) + 40 * prog(t, 3.2, 5.5);
-  $("sun").setAttribute("opacity", Math.max(sA, sB));
+  // big setting sun over Africa (Asia has the Shaheed Minar's red sun in its own artwork)
+  const sunR = 280, sunY = 1250 + 40 * prog(t, C[1], C[2]);
+  $("sun").setAttribute("opacity", prog(t, C[1] - 0.1, C[1] + 0.4) * (1 - prog(t, C[2] - 0.2, C[2] + 0.2)));
   $("sunDisc").setAttribute("r", sunR); $("sunDisc").setAttribute("cy", sunY);
   $("sunHalo").setAttribute("r", sunR * 2.4); $("sunHalo").setAttribute("cy", sunY);
-  $("sunDisc").setAttribute("fill", mix("#fde68a", "#fff7ed", prog(t, 3.0, 3.6)));
 
   // night sky: stars + crescent over the Middle East
-  const night = prog(t, 5.3, 5.9) * (1 - prog(t, 7.6, 8.1));
+  const night = prog(t, C[2] - 0.2, C[2] + 0.4) * (1 - prog(t, C[3] - 0.2, C[3] + 0.3));
   $("stars").setAttribute("opacity", night);
   for (const [c, ph, base] of STARS) c.setAttribute("opacity", base * (0.6 + 0.4 * Math.sin(t * 5 + ph)));
   $("moon").setAttribute("opacity", night);
-  $("moon").setAttribute("transform", `translate(0 ${(1 - easeOut(prog(t, 5.3, 6.0))) * 60})`);
-
-  // birds crossing the African sunset
-  $("birds").setAttribute("opacity", prog(t, 3.4, 3.8) * (1 - prog(t, 5.2, 5.5)));
-  for (const [p, x0, y0, sc, ph] of BIRDS) {
-    const x = x0 + (t - 3.2) * 90 * sc, y = y0 - (t - 3.2) * 12, f = Math.sin(t * 12 + ph) * 10 * sc, w = 22 * sc;
-    p.setAttribute("d", `M${x - w} ${y - f}Q${x - w / 2} ${y - 6} ${x} ${y}Q${x + w / 2} ${y - 6} ${x + w} ${y - f}`);
-  }
+  $("moon").setAttribute("transform", `translate(0 ${(1 - easeOut(prog(t, C[2] - 0.2, C[2] + 0.5))) * 60})`);
 
   // plane flyby at each cut, leaving a dotted contrail
   let fly = null;
@@ -390,14 +431,14 @@ window.render = function (t) {
   } else { $("plane").setAttribute("opacity", 0); $("trail").setAttribute("opacity", 0); }
 
   // intro
-  const iIn = backOut(prog(t, 0, 0.35)), iOut = easeIn(prog(t, 0.62, 0.95));
+  const iIn = backOut(prog(t, 0, 0.35)), iOut = easeIn(prog(t, C[0] - 0.28, C[0] + 0.05));
   setT("intro", 0, -iOut * 160, Math.min(prog(t, 0, 0.2), 1 - iOut));
   $("introIcon").style.transform = `scale(${0.6 + 0.4 * iIn}) rotateX(${(1 - prog(t, 0, 0.3)) * 80}deg)`;
   $("introText").style.transform = `translateY(${(1 - easeOut(prog(t, 0.1, 0.45))) * 40}px)`;
   $("introText").style.opacity = prog(t, 0.1, 0.35);
 
   // brand chip
-  setT("brand", 0, (1 - easeOut(prog(t, 0.75, 1.15))) * -30, prog(t, 0.75, 1.1) * (1 - prog(t, 7.6, 7.9)));
+  setT("brand", 0, (1 - easeOut(prog(t, C[0] - 0.15, C[0] + 0.25))) * -30, prog(t, C[0] - 0.15, C[0] + 0.2) * (1 - prog(t, C[3] - 0.2, C[3] + 0.1)));
 
   // region title
   let ti = -1;
@@ -411,7 +452,7 @@ window.render = function (t) {
   } else $("title").style.opacity = 0;
 
   // departures board
-  const bIn = easeOut(prog(t, 0.75, 1.15)), bOut = easeIn(prog(t, 7.55, 7.95));
+  const bIn = easeOut(prog(t, C[0] - 0.15, C[0] + 0.25)), bOut = easeIn(prog(t, C[3] - 0.25, C[3] + 0.15));
   setT("board", 0, (1 - bIn) * 60 - bOut * 80, bIn * (1 - bOut));
   flipping = 0;
   for (let r = 0; r < 3; r++) for (let c = 0; c < CODE + CITY; c++) {
@@ -421,15 +462,19 @@ window.render = function (t) {
     flipping += f;
   }
 
-  // outro
-  const o = t - 7.8;
+  // outro: flip in FULKI ✈, then the contrail, TRAVEL & TOURS, the line and the contacts
+  const o = t - C[3];
   $("skyline").setAttribute("opacity", 0.4 * easeOut(prog(o, 0.2, 0.8)));
   $("skyline").setAttribute("transform", `translate(0 ${(1 - easeOut(prog(o, 0.2, 0.9))) * 120})`);
-  $("outro").style.opacity = prog(o, 0.05, 0.35);
-  $("outLogo").style.transform = `scale(${0.9 + 0.1 * easeOut(prog(o, 0.05, 0.6))})`;
-  for (const [id, a0] of [["outTag", 0.35], ["outSub", 0.5], ["outPill", 0.65], ["outUrl", 0.8]]) {
-    $(id).style.opacity = prog(o, a0, a0 + 0.3);
-    $(id).style.transform = `translateY(${(1 - easeOut(prog(o, a0, a0 + 0.4))) * 40}px)` + (id === "outPill" ? ` scale(${1 + 0.03 * Math.sin(Math.max(0, o - 1.2) * 5)})` : "");
+  $("outro").style.opacity = prog(o, 0, 0.2);
+  flipping += 2 * flapLogo(t);
+  const land = t - LANDED;
+  $("logoFlaps").lastChild.style.transform = `translateY(${land > 0 ? -14 * Math.sin(Math.min(1, land / 0.25) * Math.PI) : 0}px)`;
+  $("outTrail").style.transform = `scaleX(${easeOut(prog(land, 0, 0.4))})`;
+  $("outTrail").style.opacity = prog(land, 0, 0.1);
+  for (const [id, a0] of [["outTT", 0.1], ["outTag", 0.3], ["outSub", 0.45], ["outPill", 0.55], ["outUrl", 0.65]]) {
+    $(id).style.opacity = prog(land, a0, a0 + 0.25);
+    $(id).style.transform = `translateY(${(1 - easeOut(prog(land, a0, a0 + 0.35))) * 40}px)` + (id === "outPill" ? ` scale(${1 + 0.03 * Math.sin(Math.max(0, land - 1) * 5)})` : "");
   }
   return flipping;
 };

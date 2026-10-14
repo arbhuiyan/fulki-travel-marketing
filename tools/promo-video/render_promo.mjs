@@ -4,7 +4,7 @@
 import { chromium } from "playwright";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { mkdirSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -19,9 +19,6 @@ const page = await browser.newPage({ viewport: { width: W, height: H } });
 async function open(lang) {
   await page.goto(pathToFileURL(path.join(here, "promo.html")).href + "?lang=" + lang);
   await page.evaluate(() => document.fonts.ready);
-  // the reversed lockup carries its own night-coloured box; drop it so the logo sits on the outro's glow
-  const logo = readFileSync(path.join(root, "assets/logo/fulki-travel-tours-reversed.svg"), "utf8").replace(/<rect width="[^"]*" height="[^"]*" rx="0" fill="#0C0A09"\/>/, "");
-  await page.evaluate(src => { document.getElementById("outLogo").src = src; }, "data:image/svg+xml;base64," + Buffer.from(logo).toString("base64"));
   await page.waitForFunction(() => [...document.images].every(i => i.complete));
 }
 
