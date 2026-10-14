@@ -54,17 +54,6 @@ function shaheedMinar(parent, cx, sc, color) {
   el("path", { d: m, fill: color, "fill-rule": "evenodd", transform: `translate(${cx} 1772) scale(${sc}) translate(-470 -1772)` }, parent);
 }
 
-function coconutPalm(cx, base, top, lean) {
-  let d = `M${cx - 9} ${base}Q${cx + lean * .2} ${(base + top) / 2} ${cx + lean - 4} ${top}L${cx + lean + 4} ${top}Q${cx + lean * .2 + 12} ${(base + top) / 2} ${cx + 9} ${base}Z`;
-  const x = cx + lean, y = top;
-  for (const a of [-170, -140, -105, -70, -35, -8, 20]) {
-    const r = a * Math.PI / 180, ex = x + Math.cos(r) * 130, ey = y + Math.sin(r) * 60 + 64;
-    const mx = x + Math.cos(r) * 70, my = y + Math.sin(r) * 70 - 10;
-    d += `M${x} ${y}Q${mx} ${my - 12} ${ex} ${ey}Q${mx} ${my + 14} ${x} ${y + 8}Z`;
-  }
-  return d;
-}
-
 function dhaka(back, front, accent) {
   // the flag's red sun rising behind the city, a far skyline under it
   el("circle", { cx: 540, cy: 1450, r: 205, fill: "#f42a41" }, this.b);

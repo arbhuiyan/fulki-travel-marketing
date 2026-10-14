@@ -177,6 +177,18 @@ function minaret(cx, base, top, w, f) {
   return d;
 }
 
+// a coconut palm as one path: a curved trunk from base up to top, leaning by `lean`, and drooping fronds
+function coconutPalm(cx, base, top, lean) {
+  let d = `M${cx - 9} ${base}Q${cx + lean * .2} ${(base + top) / 2} ${cx + lean - 4} ${top}L${cx + lean + 4} ${top}Q${cx + lean * .2 + 12} ${(base + top) / 2} ${cx + 9} ${base}Z`;
+  const x = cx + lean, y = top;
+  for (const a of [-170, -140, -105, -70, -35, -8, 20]) {
+    const r = a * Math.PI / 180, ex = x + Math.cos(r) * 130, ey = y + Math.sin(r) * 60 + 64;
+    const mx = x + Math.cos(r) * 70, my = y + Math.sin(r) * 70 - 10;
+    d += `M${x} ${y}Q${mx} ${my - 12} ${ex} ${ey}Q${mx} ${my + 14} ${x} ${y + 8}Z`;
+  }
+  return d;
+}
+
 function frame(x, y, w, h, bars, th = 12) {
   // an open grille column: outline plus vertical bars (drawn with fill-rule evenodd)
   let d = rect(x, y, w, h) + rect(x + th, y + th, w - 2 * th, h - th);

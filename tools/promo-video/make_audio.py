@@ -1,6 +1,6 @@
 """Synthesize the promo soundtrack: a hummed melody (voices only, no instruments) in the
 background, a low natural soundscape for each scene beneath it (chosen by the promo: monsoon rain and
-river, savanna wind, desert wind and sand, tea-garden breeze, or waves on the beach), and sound effects on
+river, savanna wind, desert wind and sand, tea-garden breeze, waves on the beach or a river at dusk), and sound effects on
 top: dry mechanical clacks for every card that flips, a low swipe on every scene change, and a
 phone call-to-action when the WhatsApp number appears.
 
@@ -13,6 +13,7 @@ Usage: python3 make_audio.py cues.json out.wav [variant]
   Open voice, simple and low in the mix:
   mawwal        Middle Eastern: one open voice on "aa"/"ey" in maqam Hijaz, over a soft low "oo"
   callresponse  African: a lead calls "e-o-e" and a small group answers in harmony, on a pentatonic scale
+  sahel         West African hum: the same call and response, hummed, on a minor pentatonic scale
   raga          South Asian: a raga alaap in Raag Yaman on open "aa", gliding between notes over a soft Sa-Pa
   Other backgrounds:
   airport       no voice: an airport terminal instead (hall hum, crowd murmur, footsteps, suitcases
@@ -61,7 +62,7 @@ SCALE = {"hijaz": [0, 1, 4, 5, 7, 8, 10], "bayati": [0, 1.5, 3, 5, 7, 8, 10], "a
          # makam Hüseyni in Turkish (53-comma) tuning: the second sits 8 commas up, between E-flat and E
          "uzunhava": [0, 1.81, 2.94, 4.98, 7.02, 9.06, 9.96],
          "airport": [0, 2, 4, 5, 7, 9, 11], "none": [0, 2, 4, 5, 7, 9, 11],
-         "mawwal": [0, 1, 4, 5, 7, 8, 10], "callresponse": [0, 2, 4, 7, 9], "raga": [0, 2, 4, 6, 7, 9, 11]}[VARIANT]
+         "mawwal": [0, 1, 4, 5, 7, 8, 10], "callresponse": [0, 2, 4, 7, 9], "sahel": [0, 3, 5, 7, 10], "raga": [0, 2, 4, 6, 7, 9, 11]}[VARIANT]
 TONIC = 50  # D3
 # under the airport the hum goes up an octave and a little brighter, so it carries on phone speakers
 UNDER_AIRPORT = bool(HUM) and BACKGROUND == "airport"
@@ -397,7 +398,7 @@ def open_solo(line, top, drone, glide, vib, vib_rate, end_vowel):
              vib=0.1, breath=0.03, pan=(-0.35, 0.35, 0)[k % 3], gain=0.2 if k == 0 else 0.13, verb=0.7, vowel="u")
 
 
-def call_and_response():
+def call_and_response(hum=False):
     """A lead calls, a small group answers in harmony (a third/fourth below and an octave below)."""
     def lay(start, notes, unit=U, gap=0.05):
         out, s_ = [], start
@@ -414,13 +415,13 @@ def call_and_response():
     calls.append((mid, land - 0.03, 5, "e"))
     together, s_ = lay(land, CALLS["finale"])
     together.append((s_, dur - 0.2, 0, "a"))
-    sing(calls + together, 0, dur, vowel="e", vib=0.6, vib_rate=5.6, glide=30, breath=0.03, gain=1.0, verb=0.5)
+    sing(calls + together, 0, dur, vowel=None if hum else "e", vib=0.6, vib_rate=5.6, glide=30, breath=0.03, gain=1.0, verb=0.5)
     for at in (0.4, c0, c1, c2, c3):
         inhale(at, 0.04)
     group = answers + together
     for k, (off, size, pan, g) in enumerate(((0, 1.03, -0.5, 0.45), (-2, 1.08, 0.5, 0.4), (-5, 1.12, 0.0, 0.3))):
         notes = [(s0 + 0.01 * k, e0 + 0.01 * k, d + off, *v) for s0, e0, d, *v in group]
-        sing(notes, c0, dur, vowel="o", size=size, vib=0.4, vib_rate=5.3, glide=30, breath=0.04, pan=pan, gain=g, verb=0.6)
+        sing(notes, c0, dur, vowel=None if hum else "o", size=size, vib=0.4, vib_rate=5.3, glide=30, breath=0.04, pan=pan, gain=g, verb=0.6)
 
 
 if VARIANT == "alaap":
@@ -429,6 +430,8 @@ elif VARIANT == "mawwal":
     open_solo(MAWWAL, 7, [(0, -12), (4, -12)], glide=60, vib=1.0, vib_rate=5.5, end_vowel="a")
 elif VARIANT == "raga":
     open_solo(RAGA, 7, [(0, -12), (4, -12)], glide=150, vib=0.35, vib_rate=5.0, end_vowel="a")
+elif VARIANT == "sahel":
+    call_and_response(hum=True)
 elif VARIANT == "callresponse":
     call_and_response()
 elif VARIANT == "uzunhava":
@@ -613,7 +616,19 @@ def sea(a, b, gain=1.4):
         amb[i : i + len(seg), 1] += seg * (1.0 if k % 2 else 0.8)
 
 
-SOUNDSCAPES = {"monsoon": monsoon, "savanna": savanna, "desert": desert, "tea": tea_garden, "sea": sea}
+def river(a, b, gain=1.5):
+    """A wide river at dusk: water lapping at the bank and boats, a light breeze over it (Saint-Louis)."""
+    soundscape(lambda: band_noise(n, 150, 1100, 1.1) * gusts(4, 0.3) ** 1.5 * 0.7 + band_noise(n, 40, 400, 1.6) * gusts(0.35, 0.4) * 0.4, a, b, gain)
+    for _ in range(int((b - a) * 6)):  # small slaps of water against hulls
+        s0 = rng.uniform(a, b)
+        ln = int(0.12 * SR)
+        slap = band_noise(ln, 200, 1400, 1.0) * np.exp(-np.arange(ln) / SR * 35)
+        i = int(s0 * SR)
+        seg = slap[: n - i] * rng.uniform(0.3, 0.7) * scene_env(a, b)[i] * gain
+        amb[i : i + len(seg), int(rng.random() < 0.5)] += seg
+
+
+SOUNDSCAPES = {"monsoon": monsoon, "savanna": savanna, "desert": desert, "tea": tea_garden, "sea": sea, "river": river}
 for (a, b), name in zip(((c0, c1), (c1, c2), (c2, c3)), cues.get("sounds") or ["monsoon", "savanna", "desert"]):
     SOUNDSCAPES[name](a, b)
 

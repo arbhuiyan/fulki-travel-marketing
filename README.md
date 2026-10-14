@@ -27,8 +27,10 @@ content file per promo in `tools/promo-video/promos/`:
   `fulki-promo-en.mp4`, `fulki-promo-it.mp4`.
 - **Bangladesh** (`promos/bangladesh.js`): Dhaka, Sylhet and Cox's Bazar, with departures from Italian airports —
   `fulki-promo-bangladesh-en.mp4`, `-it.mp4`, `-bn.mp4`.
+- **Senegal** (`promos/senegal.js`): Dakar, Touba and Saint-Louis, with departures from Italian airports to Dakar —
+  `fulki-promo-senegal-en.mp4`, `-it.mp4`, `-fr.mp4`.
 
-Render with `node tools/promo-video/render_promo.mjs [--promo regions|bangladesh]` (needs Playwright, ffmpeg and
+Render with `node tools/promo-video/render_promo.mjs [--promo regions|bangladesh|senegal]` (needs Playwright, ffmpeg and
 Python with numpy). The soundtrack, synthesized by `make_audio.py`, is an airport terminal in the background with a
 melody hummed quietly beneath it, a low natural soundscape for each scene, and on top split-flap clacks, a low swipe
 on each scene change and a phone call-to-action at the end. Each promo picks its own hum and soundscapes; other
