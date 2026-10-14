@@ -1,4 +1,4 @@
-"""Synthesize the promo soundtrack: a hummed nasheed (voices only, no instruments) in the
+"""Synthesize the promo soundtrack: a hummed melody (voices only, no instruments) in the
 background, a low natural soundscape for each region beneath it (monsoon rain and river for Asia,
 wind through dry grass for Africa, desert wind and sand for the Middle East), and sound effects on
 top: dry mechanical clacks for every card that flips, a low swipe on every scene change, and a
@@ -10,8 +10,11 @@ middle scenes their drive. The voices climb as FULKI flips in, land on the tonic
 and fade out under the contact details.
 
 Usage: python3 make_audio.py cues.json out.wav [variant]
-  hijaz   maqam Hijaz on D: the classic, uplifting sound (default)
-  bayati  maqam Bayati on D, with its quarter-tone second: softer and more devotional
+  alaap   South Asian free-voice humming, like a raga alaap or a Bengali bhatiyali: one voice in free
+          rhythm on a pentatonic scale (Sa Re Ga Pa Dha), gliding slowly between notes over a hummed
+          Sa-Pa drone (default)
+  hijaz   nasheed in maqam Hijaz on D: lead, group, drone and a soft "dum" pulse
+  bayati  nasheed in maqam Bayati on D, with its quarter-tone second: softer and more devotional
 cues.json is written by render_promo.mjs: frame rate, length, scene cuts, logo landing time,
 how many board cells flap in each frame, and when each FULKI card flips.
 """
@@ -24,7 +27,7 @@ import numpy as np
 SR = 44100
 CR = 1000  # control rate for pitch and loudness curves
 cues = json.load(open(sys.argv[1]))
-VARIANT = sys.argv[3] if len(sys.argv) > 3 else "hijaz"
+VARIANT = sys.argv[3] if len(sys.argv) > 3 else "alaap"
 rng = np.random.default_rng(31)
 fps, dur, cuts, land = cues["fps"], cues["seconds"], cues["cuts"], cues["land"]
 n, nc = int(SR * dur), int(CR * dur)
@@ -35,14 +38,14 @@ send = np.zeros((n, 2))
 fx_dry = np.zeros((n, 2))  # sound effects
 fx_send = np.zeros((n, 2))
 
-# scale degrees 0..6 (+ octaves) in semitones above the tonic D
-MAQAM = {"hijaz": [0, 1, 4, 5, 7, 8, 10], "bayati": [0, 1.5, 3, 5, 7, 8, 10]}[VARIANT]
+# scale degrees (+ octaves) in semitones above the tonic D
+SCALE = {"hijaz": [0, 1, 4, 5, 7, 8, 10], "bayati": [0, 1.5, 3, 5, 7, 8, 10], "alaap": [0, 2, 4, 7, 9]}[VARIANT]
 TONIC = 50  # D3
 
 
 def semis(deg):
-    o, d = divmod(deg, 7)
-    return 12 * o + MAQAM[int(d)]
+    o, d = divmod(deg, len(SCALE))
+    return 12 * o + SCALE[int(d)]
 
 
 # ---------- the melody: (degree, length); None is a breath. Lengths are eighths of the scene grid ----------
@@ -78,6 +81,34 @@ def timeline():
     return out
 
 
+# the alaap: free rhythm, in seconds from each section's start; "gamak" marks a slow shake on the note
+ALAAP = {
+    "intro": [(0, 0.8), (-1, 0.3), (0, 0.8)],
+    "asia": [(0, 0.3), (1, 0.45), (2, 1.3, "gamak"), (1, 0.45), (0, 0.7), (None, 0.2)],
+    "africa": [(2, 0.35), (3, 1.2), (4, 0.35), (3, 0.55), (2, 0.75), (None, 0.2)],
+    "me": [(3, 0.35), (4, 0.4), (5, 1.4, "gamak"), (4, 0.4), (3, 0.65), (None, 0.2)],
+    "climb": [(3, 0.5), (4, 0.5)],  # then Sa above holds until the plane lands
+    "finale": [(6, 0.4), (5, 1.0), (4, 0.35), (3, 0.6), (2, 0.35, "gamak"), (1, 0.35)],  # then home to Sa
+}
+
+
+def alaap_timeline():
+    out = []
+
+    def run(start, notes):
+        s = start
+        for d, ln, *orn in notes:
+            out.append((s, s + ln, d, *orn)); s += ln
+        return s
+
+    run(0.3, ALAAP["intro"])
+    for a, key in zip((c0, c1, c2), ("asia", "africa", "me")):
+        run(a, ALAAP[key])
+    out.append((run(c3, ALAAP["climb"]), land, 5))
+    out.append((run(land, ALAAP["finale"]), dur - 0.2, 0))
+    return out
+
+
 # ---------- a humming voice ----------
 def smooth(x, ms):
     k = max(1, int(CR * ms / 1000))
@@ -110,8 +141,9 @@ def sing(notes, a, b, shift=0.0, size=1.0, vib=1.0, late=0.0, breath=0.02, glide
     onset = np.zeros(nc)  # seconds since the current note began
     length = np.zeros(nc)
     changes = np.zeros(nc)
+    gamak = np.zeros(nc)
     prev = None
-    for s, e, d in notes:
+    for s, e, d, *orn in notes:
         s, e = s + late, e + late
         j0, j1 = max(0, int(s * CR)), min(nc, int(e * CR))
         if d is None or j1 <= j0:
@@ -124,6 +156,9 @@ def sing(notes, a, b, shift=0.0, size=1.0, vib=1.0, late=0.0, breath=0.02, glide
         onset[j0:j1] = tc[j0:j1] - s
         length[j0:j1] = e - s
         changes[j0] = 1
+        if orn and orn[0] == "gamak":  # a slow, wide shake that grows through the note
+            x = tc[j0:j1] - s
+            gamak[j0:j1] = 0.4 * np.sin(2 * np.pi * 3.0 * x) * np.clip((x - 0.15) / 0.4, 0, 1)
         prev = d
     # hold the last pitch through breaths, so slides start where the voice left off
     idx = np.where(~np.isnan(pitch), np.arange(nc), 0)
@@ -134,7 +169,7 @@ def sing(notes, a, b, shift=0.0, size=1.0, vib=1.0, late=0.0, breath=0.02, glide
     # vibrato grows in on held notes; a slow drift keeps the intonation human
     depth = 0.28 * vib * np.clip((onset - 0.2) / 0.35, 0, 1) * (length > 0.4)
     rate = 5.2 + 0.3 * wobble(400)
-    pitch += depth * np.sin(2 * np.pi * np.cumsum(rate) / CR + rng.random() * 6) + 0.04 * wobble(80)
+    pitch += depth * np.sin(2 * np.pi * np.cumsum(rate) / CR + rng.random() * 6) + 0.04 * wobble(80) + gamak
     # loudness: soft onsets, a slight dip at each new note, a gentle swell through the note, shimmer
     dip = smooth(changes, 25)
     loud = smooth(gate, 35) * (1 - 0.12 * dip / (dip.max() + 1e-9))
@@ -194,45 +229,65 @@ def reverb(x, length=2.8, damp=5000):
 
 
 # ---------- arrangement ----------
-lead = timeline()
-full = VARIANT != "bayati"
+def alaap():
+    """One free voice over a hummed Sa-Pa drone; a lower voice answers it from the Middle East on."""
+    lead = alaap_timeline()
+    sing(lead, 0, dur, vib=0.3, glide=170, breath=0.03, gain=1.0, verb=0.6)
+    sing(lead, 0, dur, shift=0.05, size=0.96, vib=0.2, glide=170, late=0.02, breath=0.03, pan=0.15, gain=0.22, verb=0.7)
+    for at in (0.3, c0, c1, c2, c3):
+        inhale(at)
+    for sh, size, pan, g in ((-12, 1.1, -0.35, 0.32), (-11.93, 1.05, 0.35, 0.28)):  # Sa below
+        sing([(0.0, dur - 0.1, 0)], 0, dur, shift=sh, size=size, vib=0.1, breath=0.04, pan=pan, gain=g, verb=0.6)
+    sing([(c0, dur - 0.1, -2)], c0, dur, size=1.08, vib=0.1, breath=0.04, gain=0.2, verb=0.6)  # Pa below
+    answer = [(s + 0.35, e + 0.35, d - 5 if d is not None else None, *o) for s, e, d, *o in lead if c2 - 0.01 <= s < land]
+    sing(answer, c2, land + 0.6, vib=0.2, glide=170, size=1.08, breath=0.04, pan=-0.4, gain=0.25, verb=0.8)
+    for k, deg in enumerate((-5, 0, 3)):  # at the landing the drone opens to Sa, Sa and Pa
+        sing([(land, dur - 0.2, deg)], land - 0.02, dur, shift=0.05 * (-1) ** k, size=1.0 + 0.04 * k,
+             vib=0.3, late=0.02 * k, breath=0.05, pan=-0.5 + 0.5 * k, gain=0.24, verb=0.85)
 
-# lead voice, with a close double for body
-sing(lead, 0, dur, vib=1.0, breath=0.025, gain=1.0, verb=0.55)
-sing(lead, 0, dur, shift=0.06, size=0.96, vib=0.6, late=0.018, breath=0.03, pan=0.15, gain=0.35, verb=0.7)
-for at in (0.3, c0, c1, c2, c3):
-    inhale(at)
 
-# drone: the group hums the tonic an octave down (and the fifth, in Hijaz), swelling in from the start
-sing([(0.0, dur - 0.1, 0)], 0, dur, shift=-12, size=1.1, vib=0.15, breath=0.04, pan=-0.35, gain=0.32, verb=0.6)
-sing([(0.0, dur - 0.1, 0)], 0, dur, shift=-11.92, size=1.05, vib=0.15, breath=0.04, pan=0.35, gain=0.28, verb=0.6)
-if full:
-    sing([(c0, dur - 0.1, 4)], c0, dur, shift=-12, size=1.08, vib=0.1, breath=0.04, gain=0.18, verb=0.6)
+if VARIANT == "alaap":
+    alaap()
+lead = timeline() if VARIANT != "alaap" else []
+full = VARIANT == "hijaz"
 
-# the group joins the melody in unison (from Africa in Hijaz, from the Middle East in Bayati);
-# in Hijaz the Middle East adds a line a fourth below
-group_from = c1 if full else c2
-group = [(s, e, d) for s, e, d in lead if s >= group_from - 0.01]
-for k, (sh, size, pan) in enumerate(((0.1, 0.93, -0.6), (-0.09, 1.06, 0.6), (0.04, 0.98, -0.2))):
-    sing(group, group_from, dur, shift=sh, size=size, vib=0.7, late=0.02 + 0.015 * k, breath=0.05, pan=pan,
-         gain=0.3 if full else 0.22, verb=0.8)
-if full:
-    fourth = [(s, e, None if d is None else d - 3) for s, e, d in lead if s >= c2 - 0.01]
-    for sh, size, pan in ((0.05, 1.04, -0.5), (-0.05, 1.1, 0.5)):
-        sing(fourth, c2, dur, shift=sh, size=size, vib=0.6, late=0.03, breath=0.05, pan=pan, gain=0.24, verb=0.8)
+if VARIANT != "alaap":
+    # lead voice, with a close double for body
+    sing(lead, 0, dur, vib=1.0, breath=0.025, gain=1.0, verb=0.55)
+    sing(lead, 0, dur, shift=0.06, size=0.96, vib=0.6, late=0.018, breath=0.03, pan=0.15, gain=0.35, verb=0.7)
+    for at in (0.3, c0, c1, c2, c3):
+        inhale(at)
 
-# a low hummed "dum" pulse in 3-3-2 up to the landing (a soft heartbeat in Bayati)
-for s in np.arange(group_from, land - 0.05, U):
-    step = int(round((s - c0) / U)) % 8
-    if step in (0, 3, 6) or (full and s >= c2 and step == 7):
-        sing([(s, s + 0.16, 0)], s, s + 0.4, shift=-12, size=1.15, vib=0, glide=10, breath=0.02,
-             gain=(0.5 if step == 0 else 0.35) * (1 if full else 0.6), verb=0.25)
+    # drone: the group hums the tonic an octave down (and the fifth, in Hijaz), swelling in from the start
+    sing([(0.0, dur - 0.1, 0)], 0, dur, shift=-12, size=1.1, vib=0.15, breath=0.04, pan=-0.35, gain=0.32, verb=0.6)
+    sing([(0.0, dur - 0.1, 0)], 0, dur, shift=-11.92, size=1.05, vib=0.15, breath=0.04, pan=0.35, gain=0.28, verb=0.6)
+    if full:
+        sing([(c0, dur - 0.1, 4)], c0, dur, shift=-12, size=1.08, vib=0.1, breath=0.04, gain=0.18, verb=0.6)
 
-# the landing: the whole group arrives on the tonic chord and holds it under the finale
-chord = [(-12, 0), (0, 0), (0, 2), (0, 4)] if full else [(-12, 0), (0, 0), (0, 4)]
-for k, (octv, deg) in enumerate(chord):
-    sing([(land, dur - 0.2, deg)], land - 0.02, dur, shift=octv + 0.05 * (-1) ** k, size=1.0 + 0.04 * k,
-         vib=0.5, late=0.01 * k, breath=0.05, pan=-0.6 + 0.4 * k, gain=0.28, verb=0.85)
+    # the group joins the melody in unison (from Africa in Hijaz, from the Middle East in Bayati);
+    # in Hijaz the Middle East adds a line a fourth below
+    group_from = c1 if full else c2
+    group = [(s, e, d) for s, e, d in lead if s >= group_from - 0.01]
+    for k, (sh, size, pan) in enumerate(((0.1, 0.93, -0.6), (-0.09, 1.06, 0.6), (0.04, 0.98, -0.2))):
+        sing(group, group_from, dur, shift=sh, size=size, vib=0.7, late=0.02 + 0.015 * k, breath=0.05, pan=pan,
+             gain=0.3 if full else 0.22, verb=0.8)
+    if full:
+        fourth = [(s, e, None if d is None else d - 3) for s, e, d in lead if s >= c2 - 0.01]
+        for sh, size, pan in ((0.05, 1.04, -0.5), (-0.05, 1.1, 0.5)):
+            sing(fourth, c2, dur, shift=sh, size=size, vib=0.6, late=0.03, breath=0.05, pan=pan, gain=0.24, verb=0.8)
+
+    # a low hummed "dum" pulse in 3-3-2 up to the landing (a soft heartbeat in Bayati)
+    for s in np.arange(group_from, land - 0.05, U):
+        step = int(round((s - c0) / U)) % 8
+        if step in (0, 3, 6) or (full and s >= c2 and step == 7):
+            sing([(s, s + 0.16, 0)], s, s + 0.4, shift=-12, size=1.15, vib=0, glide=10, breath=0.02,
+                 gain=(0.5 if step == 0 else 0.35) * (1 if full else 0.6), verb=0.25)
+
+    # the landing: the whole group arrives on the tonic chord and holds it under the finale
+    chord = [(-12, 0), (0, 0), (0, 2), (0, 4)] if full else [(-12, 0), (0, 0), (0, 4)]
+    for k, (octv, deg) in enumerate(chord):
+        sing([(land, dur - 0.2, deg)], land - 0.02, dur, shift=octv + 0.05 * (-1) ** k, size=1.0 + 0.04 * k,
+             vib=0.5, late=0.01 * k, breath=0.05, pan=-0.6 + 0.4 * k, gain=0.28, verb=0.85)
 
 # ---------- sound effects ----------
 def band_noise(length, lo, hi, slope=1.0):
