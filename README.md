@@ -25,3 +25,7 @@ The link-preview image `assets/og-image.png` is drawn from `tools/og-image.html`
 - **Email:** info@fulkitravels.com
 
 © Fulki Travel. All rights reserved.
+
+The logo story video `assets/video/fulki-logo-flip.mp4` (FULKI + plane on a departures board, then the F flips into
+the logo) is drawn from `tools/logo-video/logo-flip.html`; re-render it with `node tools/logo-video/build.mjs`
+(needs Playwright, ffmpeg and numpy; the flip sounds are synthesised by `flip_sound.py`).
