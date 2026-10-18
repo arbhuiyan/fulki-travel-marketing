@@ -1,0 +1,191 @@
+<!doctype html>
+<!-- Routes promo (1080x1920), a lighter theme: planes fly from Italy across a dotted world map to each destination,
+     then the night falls and the logo card flips in over the phone number. Rendered by build.mjs. -->
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="flap.css">
+<style>
+  #stage { height: 1920px; background: #FAF6F0; }
+  #map { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #overlay { position: absolute; inset: 0; }
+  .txt { position: absolute; left: 0; width: 100%; text-align: center; color: #171717; }
+  .chip { position: absolute; transform: translate(-50%, -100%); background: #FFFFFF; border-radius: 24px; padding: 18px 30px 20px;
+          box-shadow: 0 14px 40px rgba(68, 44, 20, .18); text-align: center; white-space: nowrap; }
+  .chip b { display: block; font-size: 50px; font-weight: 800; color: #171717; letter-spacing: .02em; line-height: 1.05; }
+  .chip span { display: block; font-size: 26px; font-weight: 500; color: #78716C; margin-top: 4px; }
+  #fade { position: absolute; inset: 0; background: #0C0A09; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="map"></canvas><div id="overlay"></div></div>
+<script src="flap.js"></script>
+<script src="dotmap.js"></script>
+<script>
+const W = 1080, H = 1920, DUR = 29.5;
+const Y = 1.2;                                     // vertical stretch of the map
+const MAP_LON = -180, MAP_LAT = 80, R = 20;        // canvas: top-left corner and pixels per degree
+const HOME = [11.3, 45.5];                         // Arzignano
+const DESTS = [
+  { city: "DUBAI", country: "United Arab Emirates", at: [55.3, 25.2] },
+  { city: "DHAKA", country: "Bangladesh", at: [90.4, 23.8] },
+  { city: "BANGKOK", country: "Thailand", at: [100.5, 13.8] },
+  { city: "CASABLANCA", country: "Morocco", at: [-7.6, 33.6] },
+  { city: "NEW YORK", country: "United States", at: [-74.0, 40.7] },
+];
+const MORE = [[-79.4, 43.7], [77.2, 28.6], [3.4, 6.5], [31.2, 30.0], [-0.1, 51.5], [67.0, 24.9], [-17.4, 14.7]];
+
+// ---- the dotted map, drawn once ----
+const map = document.getElementById("map");
+map.width = 360 * R; map.height = Math.ceil(137 * Y * R);
+{
+  const g = map.getContext("2d");
+  g.fillStyle = "#E3D8CB";
+  for (const [lon, lat] of DOTS) {
+    g.beginPath();
+    g.arc((lon - MAP_LON) * R, (MAP_LAT - lat) * Y * R, 0.3 * R, 0, 2 * Math.PI);
+    g.fill();
+  }
+}
+
+// ---- timeline ----
+const INTRO = 2.4, LEG = 3.2, OVERVIEW = INTRO + DESTS.length * LEG, NIGHT = OVERVIEW + 3.8;
+const clamp = v => Math.max(0, Math.min(1, v));
+const ease = v => (v = clamp(v), v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2);
+const fadeIn = (t, a, d = 0.5) => clamp((t - a) / d);
+const lerp = (a, b, k) => a + (b - a) * k;
+
+// camera keyframes: centre (lon, lat) and pixels per degree
+function frameOn(a, b) {
+  const s = Math.min(760 / Math.abs(a[0] - b[0]), 900 / Math.abs((a[1] - b[1]) * Y), 18);
+  return { lon: (a[0] + b[0]) / 2, lat: (a[1] + b[1]) / 2, s };
+}
+const CAM = [{ t: 0, lon: HOME[0], lat: HOME[1] - 4, s: 26 }, { t: INTRO, lon: HOME[0], lat: HOME[1] - 4, s: 22 }];
+DESTS.forEach((d, k) => CAM.push({ t: INTRO + k * LEG + 1.1, ...frameOn(HOME, d.at) }));
+CAM.push({ t: OVERVIEW + 1.3, lon: 12, lat: 30, s: 5.6 });
+function camera(t) {
+  let i = 0;
+  while (i < CAM.length - 1 && t >= CAM[i + 1].t) i++;
+  const a = CAM[i], b = CAM[i + 1];
+  if (!b) return a;
+  // each move starts 1.1 s before its keyframe (or right after the previous one)
+  const start = Math.max(a.t, b.t - 1.1), k = ease((t - start) / (b.t - start));
+  return { lon: lerp(a.lon, b.lon, k), lat: lerp(a.lat, b.lat, k), s: Math.exp(lerp(Math.log(a.s), Math.log(b.s), k)) };
+}
+const toScreen = (c, [lon, lat]) => [W / 2 + (lon - c.lon) * c.s, 1040 - (lat - c.lat) * Y * c.s];
+
+// a flight path: quadratic curve bowing upwards, in screen space
+function arcPts(c, from, to, k) {
+  const [x0, y0] = toScreen(c, from), [x1, y1] = toScreen(c, to);
+  const len = Math.hypot(x1 - x0, y1 - y0);
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2 - len * 0.28;
+  const pts = [];
+  const n = 48;
+  for (let i = 0; i <= n * k; i++) {
+    const u = i / n;
+    pts.push([(1 - u) ** 2 * x0 + 2 * (1 - u) * u * cx + u * u * x1, (1 - u) ** 2 * y0 + 2 * (1 - u) * u * cy + u * u * y1]);
+  }
+  const u = k, tan = [2 * (1 - u) * (cx - x0) + 2 * u * (x1 - cx), 2 * (1 - u) * (cy - y0) + 2 * u * (y1 - cy)];
+  const head = [(1 - u) ** 2 * x0 + 2 * (1 - u) * u * cx + u * u * x1, (1 - u) ** 2 * y0 + 2 * (1 - u) * u * cy + u * u * y1];
+  return { pts, head, angle: Math.atan2(tan[1], tan[0]) * 180 / Math.PI };
+}
+const path = (pts, color, width, op) => pts.length < 2 ? "" :
+  `<polyline points="${pts.map(p => p.join(",")).join(" ")}" fill="none" stroke="${color}" stroke-width="${width}" ` +
+  `stroke-linecap="round" stroke-dasharray="1 ${width * 2.2}" opacity="${op}"/>`;
+const plane = (x, y, angle, size) =>
+  `<path fill="#EA580C" transform="translate(${x} ${y}) rotate(${angle}) scale(${size / 100})" d="${PLANE}"/>`;
+const pin = (x, y, r, color, ring = 0) =>
+  (ring ? `<circle cx="${x}" cy="${y}" r="${r + ring}" fill="${color}" opacity="${0.25 * (1 - ring / 40)}"/>` : "") +
+  `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" stroke="#FAF6F0" stroke-width="4"/>`;
+
+const FLY = 1.5;   // seconds in the air per leg
+const EVENTS = [{ t: 0.25, kind: "chime" }];
+DESTS.forEach((d, k) => {
+  const t0 = INTRO + k * LEG;
+  EVENTS.push({ t: t0 + 0.55, kind: "whoosh", dur: FLY + 0.2 }, { t: t0 + 0.6 + FLY, kind: "pop" });
+});
+EVENTS.push({ t: OVERVIEW + 0.4, kind: "whoosh", dur: 1.8 }, { t: NIGHT + 0.1, kind: "chime" });
+const LOGO_FLIPS = [{ t: NIGHT + 1.0, from: " ", to: "F", dur: 0.17 }, { t: NIGHT + 1.8, from: "F", to: "LOGO", dur: 0.42 }];
+LOGO_FLIPS.forEach(f => EVENTS.push({ t: f.t + f.dur, kind: f.dur > 0.2 ? "big" : "small" }));
+
+function render(t) {
+  const c = camera(t);
+  const [mx, my] = toScreen(c, [MAP_LON, MAP_LAT]);
+  map.style.transform = `translate(${mx}px, ${my}px) scale(${c.s / R})`;
+
+  let svg = "";
+  const home = toScreen(c, HOME);
+  // routes flown so far, then the current one with its plane
+  DESTS.forEach((d, k) => {
+    const t0 = INTRO + k * LEG + 0.6;
+    if (t < t0) return;
+    const fk = ease((t - t0) / FLY), a = arcPts(c, HOME, d.at, fk);
+    const current = t < INTRO + (k + 1) * LEG || k === DESTS.length - 1 && t < OVERVIEW;
+    svg += path(a.pts, "#EA580C", current ? 7 : 5, current ? 1 : 0.55);
+    const [dx, dy] = toScreen(c, d.at);
+    if (fk >= 1) svg += pin(dx, dy, current ? 12 : 8, "#EA580C");
+    if (fk > 0 && fk < 1) svg += plane(a.head[0], a.head[1], a.angle, 64);
+  });
+  // more routes fanning out in the overview
+  MORE.forEach((to, i) => {
+    const t0 = OVERVIEW + 0.5 + i * 0.12;
+    if (t < t0) return;
+    const fk = ease((t - t0) / 1.2), a = arcPts(c, HOME, to, fk);
+    svg += path(a.pts, "#F97316", 4, 0.7);
+    if (fk >= 1) svg += pin(...toScreen(c, to), 6, "#F97316");
+  });
+  svg += pin(home[0], home[1], 13, "#171717", 10 + 24 * ((t * 0.8) % 1));
+
+  let html = `<svg width="${W}" height="${H}" style="position:absolute;inset:0">${svg}</svg>`;
+  // the destination chip, popping up as the plane lands
+  DESTS.forEach((d, k) => {
+    const t1 = INTRO + k * LEG + 0.6 + FLY, end = INTRO + (k + 1) * LEG - 0.15;
+    if (t < t1 || t > end + 0.3) return;
+    const pop = clamp((t - t1) / 0.35), out = clamp((t - end) / 0.3);
+    const sc = (pop < 1 ? 0.6 + 0.4 * ease(pop) + Math.sin(pop * Math.PI) * 0.08 : 1) * (1 - out * 0.2);
+    const [dx, dy] = toScreen(c, d.at);
+    html += `<div class="chip" style="left:${Math.min(W - 230, Math.max(230, dx))}px;top:${dy - 34}px;opacity:${pop * (1 - out)};` +
+            `transform:translate(-50%,-100%) scale(${sc})"><b>${d.city}</b><span>${d.country}</span></div>`;
+  });
+  // headlines
+  const intro = fadeIn(t, 0.3, 0.6) * (1 - fadeIn(t, INTRO + 0.2, 0.4));
+  html += `<div class="txt" style="top:${230 + (1 - ease(fadeIn(t, 0.3, 0.6))) * 16}px;font-size:92px;font-weight:800;opacity:${intro}">Where to <span style="color:#EA580C">next?</span></div>`;
+  html += `<div class="txt" style="top:350px;font-size:36px;font-weight:500;color:#57534E;opacity:${fadeIn(t, 0.8, 0.6) * (1 - fadeIn(t, INTRO + 0.2, 0.4))}">Flights from Italy to the whole world</div>`;
+  const legs = fadeIn(t, INTRO + 0.4, 0.5) * (1 - fadeIn(t, OVERVIEW - 0.3, 0.3));
+  html += `<div class="txt" style="top:240px;font-size:34px;font-weight:700;letter-spacing:.3em;color:#A8A29E;opacity:${legs}">FROM ITALY TO</div>`;
+  const ov = fadeIn(t, OVERVIEW + 1.2, 0.6) * (1 - fadeIn(t, NIGHT - 0.3, 0.3));
+  html += `<div class="txt" style="top:${300 + (1 - ease(fadeIn(t, OVERVIEW + 1.2, 0.6))) * 16}px;font-size:76px;font-weight:800;line-height:1.1;opacity:${ov}">Flights worldwide,<br>` +
+          `<span style="color:#EA580C">with a real person</span><br>by your side.</div>`;
+
+  // night falls from Arzignano, and the logo card flips in over the phone number
+  const wipe = ease((t - NIGHT) / 0.8);
+  if (wipe > 0) {
+    html += `<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 42%, #1C1917 0%, #0C0A09 62%);` +
+            `clip-path:circle(${wipe * 2300}px at ${home[0]}px ${home[1]}px)"></div>`;
+    const ls = (() => {
+      let rest = " ";
+      for (const f of LOGO_FLIPS) {
+        if (t < f.t) break;
+        if (t < f.t + f.dur) return { a: f.from, b: f.to, p: (t - f.t) / f.dur };
+        rest = f.to;
+      }
+      return { a: rest, b: null, p: null };
+    })();
+    const cw = 420, show = fadeIn(t, NIGHT + 0.5, 0.4);
+    html += card((W - cw) / 2, 430, cw, ls.a, ls.b, ls.p, show);
+    const e1 = fadeIn(t, NIGHT + 2.6, 0.5), e2 = fadeIn(t, NIGHT + 2.9, 0.5), e3 = fadeIn(t, NIGHT + 3.4, 0.5);
+    html += `<div class="txt" style="top:${1045 + (1 - ease(e1)) * 12}px;font-size:40px;font-weight:600;letter-spacing:.06em;color:#A8A29E;opacity:${e1}">Call or WhatsApp</div>`;
+    html += `<div class="txt" style="top:${1105 + (1 - ease(e2)) * 14}px;font-size:100px;font-weight:800;color:#F5F5F4;opacity:${e2}">+39 0444 <span style="color:#F97316">022494</span></div>`;
+    html += `<div class="txt" style="top:${1265 + (1 - ease(e3)) * 12}px;font-size:34px;font-weight:500;color:#A8A29E;opacity:${e3}">fulkitravels.com · Arzignano (VI)</div>`;
+  }
+  html += `<div id="fade" style="opacity:${Math.max(1 - fadeIn(t, 0, 0.35), fadeIn(t, DUR - 0.5, 0.5))}"></div>`;
+  document.getElementById("overlay").innerHTML = html;
+}
+
+window.DUR = DUR;
+window.EVENTS = EVENTS;
+window.render = render;
+render(Number(new URLSearchParams(location.search).get("t") || 6));
+</script>
+</body>
+</html>

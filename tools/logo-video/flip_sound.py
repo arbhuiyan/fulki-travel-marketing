@@ -1,4 +1,4 @@
-"""Synthesise the soundtrack for the logo video: a split-flap clack for every flip.
+"""Synthesise the soundtrack for the videos: split-flap clacks, plus a cabin chime, whooshes and pops for the routes promo.
 
 Run: python3 tools/logo-video/flip_sound.py events.json out.wav   (needs numpy)
 events.json is the EVENTS list from the page (each may set "gain" and "pan"), plus "duration".
@@ -37,6 +37,34 @@ def clack(heavy=False):
     return out * (1.0 if heavy else rng.uniform(0.55, 0.8))
 
 
+def chime():
+    """Two-tone cabin chime, high then low."""
+    n = int(RATE * 1.6)
+    t = np.arange(n) / RATE
+    out = np.zeros(n)
+    for start, f in ((0.0, 1318.5), (0.42, 1046.5)):
+        i = int(start * RATE)
+        u = t[: n - i]
+        tone = (np.sin(2 * np.pi * f * u) + 0.3 * np.sin(2 * np.pi * 2 * f * u) + 0.12 * np.sin(2 * np.pi * 3 * f * u))
+        out[i:] += tone * decay(n - i, 0.42) * np.minimum(1, u / 0.004)
+    return 0.32 * out
+
+
+def whoosh(dur):
+    """A plane passing: filtered noise swelling and fading."""
+    n = int(RATE * dur)
+    env = np.sin(np.linspace(0, np.pi, n)) ** 2
+    out = bandpass(rng.standard_normal(n), 120, 1600) * env
+    return 0.22 * out / np.abs(out).max()
+
+
+def pop():
+    n = int(RATE * 0.18)
+    t = np.arange(n) / RATE
+    f = 520 + 380 * np.exp(-t / 0.02)
+    return 0.3 * np.sin(2 * np.pi * np.cumsum(f) / RATE) * decay(n, 0.045) * np.minimum(1, t / 0.002)
+
+
 def main(src, dst):
     data = json.load(open(src))
     n = int(RATE * data["duration"])
@@ -49,6 +77,10 @@ def main(src, dst):
         mix[i:i + len(sig), 1] += sig * np.sqrt((1 + pan) / 2)
 
     for e in data["events"]:
+        if e["kind"] in ("chime", "whoosh", "pop"):
+            sig = {"chime": chime, "pop": pop}.get(e["kind"], lambda: whoosh(e["dur"]))()
+            add(sig, e["t"])
+            continue
         gain, pan = e.get("gain", 1.0), e.get("pan", 0.0)
         add(gain * clack(e["kind"] == "big"), e["t"], pan)
         # the flap letting go, just before it lands

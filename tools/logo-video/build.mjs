@@ -1,6 +1,7 @@
-// Render the videos to assets/video/ at 60 fps, with flip sounds:
-//   logo-flip.html → fulki-logo-flip.mp4 (1080×1080), promo.html → fulki-promo.mp4 (1080×1920).
-// Run: node tools/logo-video/build.mjs [logo|promo]   (default: both; needs Playwright with Chromium, ffmpeg, python3 + numpy)
+// Render the videos to assets/video/ at 60 fps, with their sounds:
+//   logo-flip.html → fulki-logo-flip.mp4 (1080×1080), promo.html → fulki-promo.mp4 and
+//   promo-routes.html → fulki-promo-routes.mp4 (both 1080×1920).
+// Run: node tools/logo-video/build.mjs [logo|promo|routes]   (default: all; needs Playwright with Chromium, ffmpeg, python3 + numpy)
 import { chromium } from "playwright";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -14,6 +15,7 @@ const root = path.resolve(here, "../..");
 const VIDEOS = {
   logo: { page: "logo-flip.html", out: "assets/video/fulki-logo-flip.mp4", height: 1080 },
   promo: { page: "promo.html", out: "assets/video/fulki-promo.mp4", height: 1920 },
+  routes: { page: "promo-routes.html", out: "assets/video/fulki-promo-routes.mp4", height: 1920 },
 };
 const which = process.argv.slice(2);
 

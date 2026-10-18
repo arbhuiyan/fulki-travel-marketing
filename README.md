@@ -18,11 +18,13 @@ python3 tools/build_lang_pages.py
 The link-preview image `assets/og-image.png` is drawn from `tools/og-image.html`; re-render it with
 `node tools/build_og_image.mjs` (needs Playwright).
 
-Two videos are drawn from `tools/logo-video/` with the departure-board card (`flap.js`):
+The videos are drawn from `tools/logo-video/` with the departure-board card (`flap.js`):
 `assets/video/fulki-logo-flip.mp4` (`logo-flip.html`: one flap card flips through F U L K I + plane, then onto the
 logo and the "Our new look has landed" message) and `assets/video/fulki-promo.mp4` (`promo.html`: a 30-second
-vertical promo, a departures board of destinations from Italy and how to book). Re-render them with
-`node tools/logo-video/build.mjs [logo|promo]` (needs Playwright, ffmpeg and numpy; the flip sounds are synthesised
+vertical promo, a departures board of destinations from Italy and how to book). A third,
+`assets/video/fulki-promo-routes.mp4` (`promo-routes.html`), flies from Italy across a dotted world map
+(`dotmap.js`, made by `build_dotmap.py` from Natural Earth) and ends on the logo and phone number. Re-render them with
+`node tools/logo-video/build.mjs [logo|promo|routes]` (needs Playwright, ffmpeg and numpy; the sounds are synthesised
 by `flip_sound.py`).
 
 ## Contact
