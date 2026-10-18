@@ -1,4 +1,4 @@
-"""Synthesise the soundtrack for the logo video: a split-flap clack for every flip, a whoosh for the zoom.
+"""Synthesise the soundtrack for the logo video: a split-flap clack for every flip.
 
 Run: python3 tools/logo-video/flip_sound.py events.json out.wav   (needs numpy)
 events.json is the EVENTS list from logo-flip.html, plus "duration".
@@ -37,13 +37,6 @@ def clack(heavy=False):
     return out * (1.0 if heavy else rng.uniform(0.55, 0.8))
 
 
-def whoosh(dur):
-    n = int(RATE * dur)
-    env = np.sin(np.linspace(0, np.pi, n)) ** 2
-    out = bandpass(rng.standard_normal(n), 150, 1800) * env
-    return 0.18 * out / np.abs(out).max()
-
-
 def main(src, dst):
     data = json.load(open(src))
     n = int(RATE * data["duration"])
@@ -56,13 +49,9 @@ def main(src, dst):
         mix[i:i + len(sig), 1] += sig * np.sqrt((1 + pan) / 2)
 
     for e in data["events"]:
-        if e["kind"] == "whoosh":
-            add(whoosh(e["dur"]), e["t"])
-        else:
-            pan = 0.0 if e["kind"] == "big" else (e["cell"] - 2.5) / 2.5 * 0.45
-            add(clack(e["kind"] == "big"), e["t"], pan)
-            # the flap letting go, just before it lands
-            add(0.25 * clack(), e["t"] - (0.3 if e["kind"] == "big" else 0.05), pan)
+        add(clack(e["kind"] == "big"), e["t"])
+        # the flap letting go, just before it lands
+        add(0.25 * clack(), e["t"] - (0.3 if e["kind"] == "big" else 0.1))
 
     # a little room
     ir_n = int(RATE * 0.5)
