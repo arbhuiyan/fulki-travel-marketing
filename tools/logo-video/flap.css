@@ -1,0 +1,9 @@
+@font-face { font-family: "Outfit"; src: url("../../assets/fonts/outfit.woff2") format("woff2"); font-weight: 100 900; }
+html, body { margin: 0; background: #0C0A09; }
+#stage { position: relative; width: 1080px; height: 1080px; overflow: hidden; font-family: "Outfit", sans-serif;
+         background: radial-gradient(ellipse at 50% 50%, #1C1917 0%, #0C0A09 62%); }
+.cell { position: absolute; perspective: 1400px; }
+.half, .flap { position: absolute; left: 0; width: 100%; overflow: hidden; }
+.half svg, .flap svg { position: absolute; left: 0; }
+.flap { backface-visibility: hidden; }
+.shade { position: absolute; inset: 0; background: #000; }

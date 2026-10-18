@@ -18,6 +18,13 @@ python3 tools/build_lang_pages.py
 The link-preview image `assets/og-image.png` is drawn from `tools/og-image.html`; re-render it with
 `node tools/build_og_image.mjs` (needs Playwright).
 
+Two videos are drawn from `tools/logo-video/` with the departure-board card (`flap.js`):
+`assets/video/fulki-logo-flip.mp4` (`logo-flip.html`: one flap card flips through F U L K I + plane, then onto the
+logo and the "Our new look has landed" message) and `assets/video/fulki-promo.mp4` (`promo.html`: a 30-second
+vertical promo, a departures board of destinations from Italy and how to book). Re-render them with
+`node tools/logo-video/build.mjs [logo|promo]` (needs Playwright, ffmpeg and numpy; the flip sounds are synthesised
+by `flip_sound.py`).
+
 ## Contact
 
 - **Address:** Via 4 Martiri, 44, 36071 Arzignano (VI), Italy
@@ -25,7 +32,3 @@ The link-preview image `assets/og-image.png` is drawn from `tools/og-image.html`
 - **Email:** info@fulkitravels.com
 
 © Fulki Travel. All rights reserved.
-
-The logo story video `assets/video/fulki-logo-flip.mp4` (one flap card flips through F U L K I + plane, then onto
-the logo and the "Our new look has landed" message) is drawn from `tools/logo-video/logo-flip.html`; re-render it with `node tools/logo-video/build.mjs`
-(needs Playwright, ffmpeg and numpy; the flip sounds are synthesised by `flip_sound.py`).

@@ -1,7 +1,7 @@
 """Synthesise the soundtrack for the logo video: a split-flap clack for every flip.
 
 Run: python3 tools/logo-video/flip_sound.py events.json out.wav   (needs numpy)
-events.json is the EVENTS list from logo-flip.html, plus "duration".
+events.json is the EVENTS list from the page (each may set "gain" and "pan"), plus "duration".
 """
 import json
 import sys
@@ -49,9 +49,10 @@ def main(src, dst):
         mix[i:i + len(sig), 1] += sig * np.sqrt((1 + pan) / 2)
 
     for e in data["events"]:
-        add(clack(e["kind"] == "big"), e["t"])
+        gain, pan = e.get("gain", 1.0), e.get("pan", 0.0)
+        add(gain * clack(e["kind"] == "big"), e["t"], pan)
         # the flap letting go, just before it lands
-        add(0.25 * clack(), e["t"] - (0.3 if e["kind"] == "big" else 0.1))
+        add(gain * 0.25 * clack(), e["t"] - (0.3 if e["kind"] == "big" else 0.06), pan)
 
     # a little room
     ir_n = int(RATE * 0.5)

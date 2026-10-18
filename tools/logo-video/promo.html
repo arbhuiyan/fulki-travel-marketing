@@ -1,0 +1,157 @@
+<!doctype html>
+<!-- Promo video (1080x1920): the logo card flips in, then a departures board flips through destinations from Italy
+     and the agency's messages, ending on how to book. Rendered by build.mjs like logo-flip.html. -->
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="flap.css">
+<style>
+  #stage { height: 1920px; background: radial-gradient(ellipse at 50% 45%, #1C1917 0%, #0C0A09 60%); }
+  .txt { position: absolute; left: 0; width: 100%; text-align: center; color: #F5F5F4; }
+  #panel { position: absolute; border-radius: 28px; background: #141210; box-shadow: inset 0 0 0 2px #1F1C1A; }
+  #fade { position: absolute; inset: 0; background: #0C0A09; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script src="flap.js"></script>
+<script>
+const W = 1080, H = 1920;
+const DUR = 29.5;
+
+// ---- board ----
+const COLS = 14, ROWS = 8, CW = 64, GAP = 6, CH = CW * FH / FW, PITCH = CH + 13;
+const BX = (W - (COLS * CW + (COLS - 1) * GAP)) / 2, BY = 720;
+const POOL = "ABCDEGHJKLMNOPRSTUVWXYZ0123456789";
+let seed = 5;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+const DESTINATIONS = [
+  ["DAC", "DHAKA"], ["DXB", "DUBAI"], ["JFK", "NEW YORK"], ["LHR", "LONDON"],
+  ["DEL", "DELHI"], ["CMN", "CASABLANCA"], ["BKK", "BANGKOK"], ["YYZ", "TORONTO"],
+];
+// a board is ROWS lines of COLS faces; orange is the accent, white the body text
+const blank = () => Array.from({ length: ROWS }, () => Array(COLS).fill(" "));
+function destBoard() {
+  const b = blank();
+  DESTINATIONS.forEach(([code, city], r) => {
+    [...code].forEach((ch, c) => (b[r][c] = ch));
+    [...city].forEach((ch, c) => (b[r][4 + c] = { ch, white: true }));
+  });
+  return b;
+}
+// lines of text, centred; a line starting with "*" is orange
+function textBoard(lines) {
+  const b = blank();
+  lines.forEach((line, r) => {
+    const orange = line.startsWith("*"), s = orange ? line.slice(1) : line;
+    const x0 = Math.floor((COLS - s.length) / 2);
+    [...s].forEach((ch, c) => (b[r][x0 + c] = orange ? ch : { ch, white: true }));
+  });
+  return b;
+}
+
+const SCENES = [
+  { t: 3.7, board: destBoard(), rowDelay: 0.3, caption: "Dhaka, Dubai, New York… wherever you’re headed." },
+  { t: 10.9, board: textBoard(["", "*WE COMPARE", "*THE AIRLINES", "", "ONE-WAY", "RETURN", "MULTI-CITY", ""]), rowDelay: 0.06,
+    caption: "Flights worldwide, comparing several airlines and fares." },
+  { t: 15.9, board: textBoard(["", "*A REAL PERSON", "*BY YOUR SIDE", "", "BEFORE", "DURING", "& AFTER", "YOUR TRIP"]), rowDelay: 0.06,
+    caption: "In the office, by phone or on WhatsApp, in 5 languages." },
+  { t: 20.9, board: textBoard(["", "*BOOK NOW", "", "WHATSAPP", "0444 022494", "", "ARZIGNANO", ""]), rowDelay: 0.06,
+    caption: "IATA-accredited agency · Via 4 Martiri, 44, Arzignano (VI)" },
+];
+const STEP = 0.075, FLIP = 0.068;
+
+// per board cell: list of {t, from, to, dur}
+const cells = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => []));
+const EVENTS = [];
+{
+  let cur = blank();
+  for (const sc of SCENES) {
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      const a = cur[r][c], b = sc.board[r][c];
+      if ((a.ch ?? a) === " " && (b.ch ?? b) === " ") continue;
+      const n = 2 + Math.floor(rnd() * 6);
+      let from = a, t = sc.t + r * sc.rowDelay + c * 0.012 + rnd() * 0.03;
+      for (let k = 0; k < n; k++) {
+        const to = k === n - 1 ? b : { ch: POOL[Math.floor(rnd() * POOL.length)], white: true };
+        cells[r][c].push({ t, from, to, dur: FLIP });
+        EVENTS.push({ t: t + FLIP, kind: "small", gain: 0.3, pan: (c - (COLS - 1) / 2) / COLS });
+        from = to; t += STEP;
+      }
+    }
+    cur = sc.board;
+  }
+}
+
+// ---- the logo card: flips in big, then moves up to head the board ----
+const LOGO_FLIPS = [{ t: 0.5, from: " ", to: "F", dur: 0.17 }, { t: 1.3, from: "F", to: "LOGO", dur: 0.42 }];
+LOGO_FLIPS.forEach(f => EVENTS.push({ t: f.t + f.dur, kind: f.dur > 0.2 ? "big" : "small" }));
+const BIG_W = 470, SMALL_LOGO_W = 170;
+
+const clamp = v => Math.max(0, Math.min(1, v));
+const ease = v => (v = clamp(v), v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2);
+const fadeIn = (t, a, d = 0.5) => clamp((t - a) / d);
+const lerp = (a, b, k) => a + (b - a) * k;
+
+function state(list, t, rest) {
+  for (const f of list) {
+    if (t < f.t) break;
+    if (t < f.t + f.dur) return { a: f.from, b: f.to, p: (t - f.t) / f.dur };
+    rest = f.to;
+  }
+  return { a: rest, b: null, p: null };
+}
+
+function render(t) {
+  let html = "";
+  // logo card
+  const m = ease((t - 2.6) / 0.9);
+  const lw = lerp(BIG_W, SMALL_LOGO_W, m), lh = lw * FH / FW;
+  const ls = state(LOGO_FLIPS, t, " ");
+  html += card((W - lw) / 2, lerp((H - BIG_W * FH / FW) / 2, 250, m), lw, ls.a, ls.b, ls.p);
+
+  // board panel, header and column labels
+  const show = fadeIn(t, 3.35, 0.6);
+  html += `<div class="txt" style="top:${555 + (1 - ease(show)) * 14}px;font-size:40px;font-weight:700;letter-spacing:.32em;opacity:${show}">` +
+          `DEPARTURES <span style="color:#F97316">FROM ITALY</span></div>`;
+  html += `<div id="panel" style="left:${BX - 30}px;top:${BY - 64}px;width:${W - 2 * BX + 60}px;height:${ROWS * PITCH + 84}px;opacity:${show}"></div>`;
+  const labels = show * (1 - fadeIn(t, 10.7, 0.3));
+  html += `<div style="position:absolute;left:${BX + 4}px;top:${BY - 46}px;font-size:22px;font-weight:600;letter-spacing:.2em;color:#78716C;opacity:${labels}">TO</div>` +
+          `<div style="position:absolute;left:${BX + 4 * (CW + GAP) + 4}px;top:${BY - 46}px;font-size:22px;font-weight:600;letter-spacing:.2em;color:#78716C;opacity:${labels}">DESTINATION</div>`;
+
+  // a highlight running down the destinations once they are all up
+  const hk = (t - 7.0) / 0.42;
+  if (hk >= 0 && hk < DESTINATIONS.length + 0.5) {
+    const r = Math.min(DESTINATIONS.length - 1, Math.floor(hk));
+    const op = hk > DESTINATIONS.length ? 1 - (hk - DESTINATIONS.length) * 2 : 1;
+    html += `<div style="position:absolute;left:${BX - 14}px;top:${BY + r * PITCH - 6}px;width:${W - 2 * BX + 28}px;height:${CH + 12}px;` +
+            `border-radius:12px;background:rgba(234,88,12,.22);box-shadow:inset 4px 0 0 #EA580C;opacity:${op}"></div>`;
+  }
+
+  if (show > 0) for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const s = state(cells[r][c], t, " ");
+    html += card(BX + c * (CW + GAP), BY + r * PITCH, CW, s.a, s.b, s.p, show);
+  }
+
+  // captions under the board, one per scene
+  SCENES.forEach((sc, i) => {
+    const next = SCENES[i + 1];
+    const op = fadeIn(t, sc.t + 2.2, 0.5) * (next ? 1 - fadeIn(t, next.t - 0.4, 0.3) : 1);
+    if (op > 0) html += `<div class="txt" style="top:${1560 + (1 - ease(fadeIn(t, sc.t + 2.2, 0.5))) * 12}px;font-size:34px;font-weight:500;color:#D6D3D1;opacity:${op}">${sc.caption}</div>`;
+  });
+  // site address at the foot
+  const foot = fadeIn(t, 22.5, 0.6);
+  html += `<div class="txt" style="top:1690px;font-size:46px;font-weight:700;letter-spacing:.04em;opacity:${foot}">fulkitravels.com</div>`;
+
+  html += `<div id="fade" style="opacity:${Math.max(1 - fadeIn(t, 0, 0.35), fadeIn(t, DUR - 0.5, 0.5))}"></div>`;
+  document.getElementById("stage").innerHTML = html;
+}
+
+window.DUR = DUR;
+window.EVENTS = EVENTS;
+window.render = render;
+render(Number(new URLSearchParams(location.search).get("t") || 9));
+</script>
+</body>
+</html>
