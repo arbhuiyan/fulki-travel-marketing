@@ -14,6 +14,7 @@
   .half svg, .flap svg { position: absolute; left: 0; }
   .flap { backface-visibility: hidden; }
   .shade { position: absolute; inset: 0; background: #000; }
+  .txt { position: absolute; left: 0; width: 100%; text-align: center; color: #F5F5F4; }
   #fade { position: absolute; inset: 0; background: #0C0A09; pointer-events: none; }
 </style>
 </head>
@@ -98,7 +99,8 @@ function card(x, y, w, a, b, p, opacity = 1) {
 // ---- timeline ----
 // One card in the middle of the screen spells the name a character at a time, comes back to F,
 // then makes one slower, heavier flip onto the logo (the F with FULKI + plane under it).
-const DUR = 8.4;
+// Once it lands, the card rises to make room for the new-look message.
+const DUR = 10.6;
 const NAME = ["F", "U", "L", "K", "I", "^", "F"];
 const CARD_W = 470, CARD_X = (W - CARD_W) / 2, CARD_Y = (W - CARD_W * FH / FW) / 2;
 const START = 0.7, HOLD = 0.62, FLIP = 0.17;
@@ -116,7 +118,9 @@ flips.push({ t: LOGO_AT, from: cur, to: "LOGO", dur: LOGO_FLIP });
 const EVENTS = flips.map(f => ({ t: f.t + f.dur, kind: f.dur > 0.2 ? "big" : "small" }));
 
 const clamp = v => Math.max(0, Math.min(1, v));
+const ease = v => (v = clamp(v), v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2);
 const fadeIn = (t, a, d = 0.5) => clamp((t - a) / d);
+const LANDED = LOGO_AT + LOGO_FLIP;
 
 function cardState(t) {
   let rest = flips[0].from;
@@ -130,7 +134,16 @@ function cardState(t) {
 
 function render(t) {
   const s = cardState(t);
-  let html = card(CARD_X, CARD_Y, CARD_W, s.a, s.b, s.p);
+  const rise = ease((t - LANDED - 0.5) / 0.9) * 110;
+  let html = card(CARD_X, CARD_Y - rise, CARD_W, s.a, s.b, s.p);
+  // messaging: an eyebrow while the name is spelt out, then the new-look line under the logo
+  html += `<div class="txt" style="top:${CARD_Y - 66}px;font-size:24px;font-weight:600;letter-spacing:.5em;color:#78716C;` +
+          `opacity:${fadeIn(t, 0.3) * (1 - fadeIn(t, LOGO_AT - 0.2, 0.4))}">NOW BOARDING</div>`;
+  const h = fadeIn(t, LANDED + 1.0, 0.6), h2 = fadeIn(t, LANDED + 1.7, 0.6);
+  html += `<div class="txt" style="top:${785 + (1 - ease(h)) * 16}px;font-size:60px;font-weight:700;opacity:${h}">` +
+          `Our new look has <span style="color:#F97316">landed</span></div>`;
+  html += `<div class="txt" style="top:${875 + (1 - ease(h2)) * 12}px;font-size:30px;font-weight:400;line-height:1.4;color:#A8A29E;opacity:${h2}">` +
+          `Inspired by the airport departures board,<br>where every journey begins.</div>`;
   // fade from and to black
   html += `<div id="fade" style="opacity:${Math.max(1 - fadeIn(t, 0, 0.35), fadeIn(t, DUR - 0.6, 0.6))}"></div>`;
   document.getElementById("stage").innerHTML = html;
