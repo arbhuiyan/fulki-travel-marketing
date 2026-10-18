@@ -23,7 +23,7 @@ The videos are drawn from `tools/logo-video/` with the departure-board card (`fl
 logo and the "Our new look has landed" message) and `assets/video/fulki-promo.mp4` (`promo.html`: a 30-second
 vertical promo, a departures board of destinations from Italy and how to book). A third,
 `assets/video/fulki-promo-routes.mp4` (`promo-routes.html`), flies from Italy across a dotted world map
-(`dotmap.js`, made by `build_dotmap.py` from Natural Earth) and ends on the logo and phone number. Re-render them with
+(`dotmap.js`, made by `build_dotmap.py` from Natural Earth) and ends on the round logo spinning in over the phone number. Re-render them with
 `node tools/logo-video/build.mjs [logo|promo|routes]` (needs Playwright, ffmpeg and numpy; the sounds are synthesised
 by `flip_sound.py`).
 

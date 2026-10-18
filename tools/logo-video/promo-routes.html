@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- Routes promo (1080x1920), a lighter theme: planes fly from Italy across a dotted world map to each destination,
-     then the night falls and the logo card flips in over the phone number. Rendered by build.mjs. -->
+     then the round logo spins in like a tossed coin over the phone number. Rendered by build.mjs. -->
 <html>
 <head>
 <meta charset="utf-8">
@@ -14,15 +14,20 @@
           box-shadow: 0 14px 40px rgba(68, 44, 20, .18); text-align: center; white-space: nowrap; }
   .chip b { display: block; font-size: 50px; font-weight: 800; color: #171717; letter-spacing: .02em; line-height: 1.05; }
   .chip span { display: block; font-size: 26px; font-weight: 500; color: #78716C; margin-top: 4px; }
+  .coin { position: absolute; perspective: 1600px; }
+  .coin div { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .coin img { position: absolute; inset: 0; width: 100%; height: 100%; backface-visibility: hidden;
+              filter: drop-shadow(0 18px 30px rgba(68, 44, 20, .25)); }
   #fade { position: absolute; inset: 0; background: #0C0A09; pointer-events: none; }
 </style>
 </head>
 <body>
-<div id="stage"><canvas id="map"></canvas><div id="overlay"></div></div>
-<script src="flap.js"></script>
+<div id="stage"><canvas id="map"></canvas><div id="overlay"></div>
+<div id="coin" class="coin"><div><img src="../../assets/logo/fulki-icon-round.svg"><img src="../../assets/logo/fulki-icon-plane.svg" style="transform:rotateY(180deg)"></div></div><div id="fade"></div></div>
 <script src="dotmap.js"></script>
 <script>
 const W = 1080, H = 1920, DUR = 29.5;
+const PLANE = "M50 0C50 -3.6 46.5 -5.6 41 -5.6H15L-4 -40.5C-5 -42.3 -6.6 -43 -8.6 -43H-13.4C-15 -43 -15.9 -41.8 -15.4 -40.3L-6.4 -5.6H-31L-39.6 -17.4C-40.4 -18.5 -41.4 -19 -42.8 -19H-46.4C-47.7 -19 -48.4 -18 -48 -16.8L-44.2 -4.2C-44.6 -2.8 -44.6 2.8 -44.2 4.2L-48 16.8C-48.4 18 -47.7 19 -46.4 19H-42.8C-41.4 19 -40.4 18.5 -39.6 17.4L-31 5.6H-6.4L-15.4 40.3C-15.9 41.8 -15 43 -13.4 43H-8.6C-6.6 43 -5 42.3 -4 40.5L15 5.6H41C46.5 5.6 50 3.6 50 0Z";
 const Y = 1.2;                                     // vertical stretch of the map
 const MAP_LON = -180, MAP_LAT = 80, R = 20;        // canvas: top-left corner and pixels per degree
 const HOME = [11.3, 45.5];                         // Arzignano
@@ -49,7 +54,7 @@ map.width = 360 * R; map.height = Math.ceil(137 * Y * R);
 }
 
 // ---- timeline ----
-const INTRO = 2.4, LEG = 3.2, OVERVIEW = INTRO + DESTS.length * LEG, NIGHT = OVERVIEW + 3.8;
+const INTRO = 2.4, LEG = 3.2, OVERVIEW = INTRO + DESTS.length * LEG, END = OVERVIEW + 3.8;
 const clamp = v => Math.max(0, Math.min(1, v));
 const ease = v => (v = clamp(v), v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2);
 const fadeIn = (t, a, d = 0.5) => clamp((t - a) / d);
@@ -104,9 +109,9 @@ DESTS.forEach((d, k) => {
   const t0 = INTRO + k * LEG;
   EVENTS.push({ t: t0 + 0.55, kind: "whoosh", dur: FLY + 0.2 }, { t: t0 + 0.6 + FLY, kind: "pop" });
 });
-EVENTS.push({ t: OVERVIEW + 0.4, kind: "whoosh", dur: 1.8 }, { t: NIGHT + 0.1, kind: "chime" });
-const LOGO_FLIPS = [{ t: NIGHT + 1.0, from: " ", to: "F", dur: 0.17 }, { t: NIGHT + 1.8, from: "F", to: "LOGO", dur: 0.42 }];
-LOGO_FLIPS.forEach(f => EVENTS.push({ t: f.t + f.dur, kind: f.dur > 0.2 ? "big" : "small" }));
+const COIN_AT = END + 0.6, SPIN = 1.5;   // the logo is tossed in, spinning three times
+EVENTS.push({ t: OVERVIEW + 0.4, kind: "whoosh", dur: 1.8 }, { t: COIN_AT - 0.1, kind: "whoosh", dur: SPIN + 0.1 },
+            { t: COIN_AT + SPIN, kind: "pop" }, { t: COIN_AT + SPIN + 0.05, kind: "chime" });
 
 function render(t) {
   const c = camera(t);
@@ -153,35 +158,34 @@ function render(t) {
   html += `<div class="txt" style="top:350px;font-size:36px;font-weight:500;color:#57534E;opacity:${fadeIn(t, 0.8, 0.6) * (1 - fadeIn(t, INTRO + 0.2, 0.4))}">Flights from Italy to the whole world</div>`;
   const legs = fadeIn(t, INTRO + 0.4, 0.5) * (1 - fadeIn(t, OVERVIEW - 0.3, 0.3));
   html += `<div class="txt" style="top:240px;font-size:34px;font-weight:700;letter-spacing:.3em;color:#A8A29E;opacity:${legs}">FROM ITALY TO</div>`;
-  const ov = fadeIn(t, OVERVIEW + 1.2, 0.6) * (1 - fadeIn(t, NIGHT - 0.3, 0.3));
+  const ov = fadeIn(t, OVERVIEW + 1.2, 0.6) * (1 - fadeIn(t, END - 0.3, 0.3));
   html += `<div class="txt" style="top:${300 + (1 - ease(fadeIn(t, OVERVIEW + 1.2, 0.6))) * 16}px;font-size:76px;font-weight:800;line-height:1.1;opacity:${ov}">Flights worldwide,<br>` +
           `<span style="color:#EA580C">with a real person</span><br>by your side.</div>`;
 
-  // night falls from Arzignano, and the logo card flips in over the phone number
-  const wipe = ease((t - NIGHT) / 0.8);
-  if (wipe > 0) {
-    html += `<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 42%, #1C1917 0%, #0C0A09 62%);` +
-            `clip-path:circle(${wipe * 2300}px at ${home[0]}px ${home[1]}px)"></div>`;
-    const ls = (() => {
-      let rest = " ";
-      for (const f of LOGO_FLIPS) {
-        if (t < f.t) break;
-        if (t < f.t + f.dur) return { a: f.from, b: f.to, p: (t - f.t) / f.dur };
-        rest = f.to;
-      }
-      return { a: rest, b: null, p: null };
-    })();
-    const cw = 420, show = fadeIn(t, NIGHT + 0.5, 0.4);
-    html += card((W - cw) / 2, 430, cw, ls.a, ls.b, ls.p, show);
-    const e1 = fadeIn(t, NIGHT + 2.6, 0.5), e2 = fadeIn(t, NIGHT + 2.9, 0.5), e3 = fadeIn(t, NIGHT + 3.4, 0.5);
-    html += `<div class="txt" style="top:${1045 + (1 - ease(e1)) * 12}px;font-size:40px;font-weight:600;letter-spacing:.06em;color:#A8A29E;opacity:${e1}">Call or WhatsApp</div>`;
-    html += `<div class="txt" style="top:${1105 + (1 - ease(e2)) * 14}px;font-size:100px;font-weight:800;color:#F5F5F4;opacity:${e2}">+39 0444 <span style="color:#F97316">022494</span></div>`;
-    html += `<div class="txt" style="top:${1265 + (1 - ease(e3)) * 12}px;font-size:34px;font-weight:500;color:#A8A29E;opacity:${e3}">fulkitravels.com · Arzignano (VI)</div>`;
+  // the map washes out from Arzignano, the round logo spins in, then the phone number
+  const wash = ease((t - END) / 0.8);
+  if (wash > 0) {
+    html += `<div style="position:absolute;inset:0;background:#FAF6F0;opacity:.94;` +
+            `clip-path:circle(${wash * 2300}px at ${home[0]}px ${home[1]}px)"></div>`;
+    const k = clamp((t - COIN_AT) / SPIN), spin = 1 - Math.pow(1 - k, 3);
+    const size = 400 * (0.35 + 0.65 * spin), lift = Math.sin(k * Math.PI) * 160;
+    // starts on the plane side, lands on the F after three turns
+    const rot = 180 + spin * 900, settle = k >= 1 ? Math.sin(Math.min(1, (t - COIN_AT - SPIN) / 0.35) * Math.PI) * 0.05 : 0;
+    Object.assign(coin.style, { display: t >= COIN_AT ? "block" : "none", left: `${(W - size) / 2}px`, top: `${660 - size / 2 - lift}px`,
+                                width: `${size}px`, height: `${size}px`, transform: `scale(${1 + settle})` });
+    coin.firstChild.style.transform = `rotateY(${rot}deg)`;
+    const e1 = fadeIn(t, COIN_AT + SPIN + 0.3, 0.5), e2 = fadeIn(t, COIN_AT + SPIN + 0.6, 0.5), e3 = fadeIn(t, COIN_AT + SPIN + 1.1, 0.5);
+    html += `<div class="txt" style="top:${985 + (1 - ease(e1)) * 12}px;font-size:40px;font-weight:600;letter-spacing:.06em;color:#78716C;opacity:${e1}">Call or WhatsApp</div>`;
+    html += `<div class="txt" style="top:${1045 + (1 - ease(e2)) * 14}px;font-size:100px;font-weight:800;color:#171717;opacity:${e2}">+39 0444 <span style="color:#EA580C">022494</span></div>`;
+    html += `<div class="txt" style="top:${1205 + (1 - ease(e3)) * 12}px;font-size:34px;font-weight:500;color:#78716C;opacity:${e3}">fulkitravels.com · Arzignano (VI)</div>`;
   }
-  html += `<div id="fade" style="opacity:${Math.max(1 - fadeIn(t, 0, 0.35), fadeIn(t, DUR - 0.5, 0.5))}"></div>`;
+  if (wash <= 0) coin.style.display = "none";
   document.getElementById("overlay").innerHTML = html;
+  document.getElementById("fade").style.opacity = Math.max(1 - fadeIn(t, 0, 0.35), fadeIn(t, DUR - 0.5, 0.5));
 }
 
+const coin = document.getElementById("coin");
+window.READY = Promise.all([...coin.querySelectorAll("img")].map(img => img.decode()));
 window.DUR = DUR;
 window.EVENTS = EVENTS;
 window.render = render;

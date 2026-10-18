@@ -28,6 +28,7 @@ for (const [name, v] of Object.entries(VIDEOS)) {
   const page = await browser.newPage({ viewport: { width: 1080, height: v.height } });
   await page.goto(pathToFileURL(path.join(here, v.page)).href);
   await page.evaluate(() => document.fonts.load("700 40px Outfit"));
+  await page.evaluate(() => window.READY);   // pages with images say when they are decoded
   const { duration, events } = await page.evaluate(() => ({ duration: window.DUR, events: window.EVENTS }));
   const frames = Math.round(duration * FPS);
   for (let f = 0; f < frames; f++) {
