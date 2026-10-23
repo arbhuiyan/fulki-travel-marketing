@@ -24,9 +24,9 @@ logo and the "Our new look has landed" message) and `assets/video/fulki-promo.mp
 vertical promo, a departures board of destinations from Italy and how to book). A third,
 `assets/video/fulki-promo-routes.mp4` (`promo-routes.html`), flies from Italy across a dotted world map
 (`dotmap.js`, made by `build_dotmap.py` from Natural Earth) and ends on the round logo spinning in over the phone number. A fourth,
-`assets/video/fulki-promo-paper-plane.mp4` (`promo-paper-plane.html`), follows a paper plane over Venice, Paris, Dubai,
-Dhaka, Bangkok and New York, from dawn to night, folding into the Fulki plane on the way; then the flap card spells
-F U L K I, flips onto the logo, and the plane stamps itself into place beside FULKI. Re-render them with
+`assets/video/fulki-promo-paper-plane.mp4` (`promo-paper-plane.html`), follows a paper plane over Venice, Dakar, Accra,
+Dubai, Dhaka and Bangkok, from dawn to dusk, folding into the Fulki plane on the way; then on a passport page stamped
+with those cities the flap card spells F U L K I, flips onto the logo, and a rubber stamp inks the plane in beside FULKI. Re-render them with
 `node tools/logo-video/build.mjs [logo|promo|routes|paper]` (needs Playwright, ffmpeg and numpy; the sounds are synthesised
 by `flip_sound.py`).
 
