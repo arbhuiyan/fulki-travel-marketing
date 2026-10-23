@@ -28,7 +28,7 @@ window.REEL = {
       .fa-pol .cap { text-align: center; margin-top: 26px; font: 700 72px/1 "Caveat", cursive; color: #1e3a8a; }
       .fa-tape { position: absolute; left: 200px; top: -30px; width: 170px; height: 60px; background: rgba(255,240,200,.75); box-shadow: 0 2px 4px rgba(0,0,0,.1); }
       #faDoodle { position: absolute; inset: 0; pointer-events: none; }
-      #faMsg { position: absolute; left: 0; right: 0; top: 1690px; font: 700 92px/1 "Caveat", cursive; color: #3b2414; text-align: center; white-space: nowrap; }
+      #faMsg { position: absolute; left: 0; right: 0; top: 1690px; font: 700 92px/1 "Caveat", cursive; color: #3b2414; text-align: center; white-space: nowrap; display: flex; justify-content: center; }
       #faSub { position: absolute; left: 50px; right: 50px; top: 1690px; padding: 26px 30px; background: #fbfaf6; box-shadow: 0 14px 30px rgba(59,36,20,.3);
         font: 700 46px/1.25 "Manrope", sans-serif; color: #3b2414; text-align: center; transform-origin: 50% 50%; }
       #faEnd { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }

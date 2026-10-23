@@ -16,6 +16,7 @@ window.REEL = {
   seconds: 15,
   end: WS.end,
   music: { style: "tropical", bpm: 102, key: 2 },
+  crf: 28,  // the moving paper grain is costly to encode; it hides the extra compression
   copy: {
     en: { cold: "Winter<br>again?", head: "Fly to<br>the sun.", dests: ["Canary Islands", "Egypt", "Maldives", "Zanzibar", "Caribbean", "Thailand"],
           banner: "FULKI TRAVEL", line: "Your winter escape<br>starts here." },

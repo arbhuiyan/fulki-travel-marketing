@@ -52,7 +52,7 @@ for (const name of names) {
     const work = mkdtempSync(path.join(tmpdir(), "fulki-reel-"));
     const video = path.join(work, "video.mp4");
     const ff = spawn("ffmpeg", ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-i", "-",
-      "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-pix_fmt", "yuv420p", video], { stdio: ["pipe", "inherit", "inherit"] });
+      "-c:v", "libx264", "-preset", "slow", "-crf", String(tl.crf), "-pix_fmt", "yuv420p", video], { stdio: ["pipe", "inherit", "inherit"] });
     const done = new Promise((ok, fail) => ff.on("close", c => c ? fail(new Error("ffmpeg exited " + c)) : ok()));
     for (let f = 0; f < FPS * tl.seconds; f++) {
       await page.evaluate(t => render(t), f / FPS);

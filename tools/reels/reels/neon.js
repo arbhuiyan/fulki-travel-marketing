@@ -27,6 +27,8 @@ window.REEL = {
       #neFloor { position: absolute; left: 0; right: 0; top: 1560px; bottom: 0; background: linear-gradient(rgba(8,8,12,.45), rgba(10,8,14,.95)); }
       #neFloor::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 3px, transparent 3px 40px); }
       .ne { position: absolute; font: 400 120px/1.1 "Tilt Neon", sans-serif; white-space: nowrap; }
+      /* a centred line that may be wider than the screen: flex keeps it centred so scaling it down fits it */
+      #neBig, #neSub, #neCta { display: flex; justify-content: center; }
       .ne-box { padding: 26px 46px; border: 7px solid currentColor; border-radius: 40px; }
       #neBig { left: 0; right: 0; top: 860px; text-align: center; font-size: 180px; }
       #neSub { left: 0; right: 0; top: 1110px; text-align: center; font-size: 84px; }
