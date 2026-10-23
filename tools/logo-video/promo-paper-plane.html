@@ -35,6 +35,8 @@
   <div id="fade"></div>
 </div>
 <script src="flap.js"></script>
+<script src="paperplane.js"></script>
+<script src="passport.js"></script>
 <script>
 const W = 1080, H = 1920, GROUND = H, DUR = 21.5;
 const NS = "http://www.w3.org/2000/svg";
@@ -187,49 +189,8 @@ function palette(t) {
 }
 
 // ---- the plane ----
-const PAPER = { pts: [[62, 0], [-42, -40], [-30, 0], [-42, 40]] };   // top view of a paper dart, nose first
-const BRAND_KEYS = [[50, 0], [-11, -43], [-44.6, 0], [-11, 43]];      // nose, wingtip, tail, wingtip on PLANE
-const N = 60;                                                         // points per side for the morph
-function resample(poly, n) {   // n evenly spaced points along an open polyline
-  const len = [0];
-  for (let i = 1; i < poly.length; i++) len.push(len[i - 1] + Math.hypot(poly[i][0] - poly[i - 1][0], poly[i][1] - poly[i - 1][1]));
-  const out = [];
-  for (let j = 0, i = 1; j < n; j++) {
-    const L = len.at(-1) * j / n;
-    while (len[i] < L) i++;
-    const k = (L - len[i - 1]) / (len[i] - len[i - 1] || 1);
-    out.push([lerp(poly[i - 1][0], poly[i][0], k), lerp(poly[i - 1][1], poly[i][1], k)]);
-  }
-  return out;
-}
-const MORPH = (() => {
-  const el = svgEl("path", { d: PLANE });
-  document.getElementById("scene").appendChild(el);
-  const total = el.getTotalLength(), dense = [];
-  for (let i = 0; i <= 3000; i++) { const p = el.getPointAtLength(total * i / 3000); dense.push([p.x, p.y]); }
-  el.remove();
-  const idx = BRAND_KEYS.map(([x, y]) => dense.reduce((best, p, i) => Math.hypot(p[0] - x, p[1] - y) < Math.hypot(dense[best][0] - x, dense[best][1] - y) ? i : best, 0));
-  idx[0] = 0; idx.push(3000);
-  const brand = [], paper = [], pp = [...PAPER.pts, PAPER.pts[0]];
-  for (let s = 0; s < 4; s++) {
-    brand.push(...resample(dense.slice(idx[s], idx[s + 1] + 1), N));
-    paper.push(...resample([pp[s], pp[s + 1]], N));
-  }
-  return { brand, paper };
-})();
+const planeShape = PaperPlane.shape;
 const MORPH_AT = centreT(3) - 0.55, MORPH_T = 1.2;   // over Dubai
-
-function planeShape(m, roll) {
-  const pts = MORPH.paper.map((p, i) => [lerp(p[0], MORPH.brand[i][0], m), lerp(p[1], MORPH.brand[i][1], m) * roll]);
-  const d = "M" + pts.map(p => p.map(v => v.toFixed(2)).join(" ")).join("L") + "Z";
-  let g = `<path d="${d}" fill="${mix("#FFFFFF", "#EA580C", ease(m * 1.4))}"/>`;
-  if (m < 1) {   // the folds of the paper: a shaded lower wing and the centre crease
-    const [n, a, c, b] = PAPER.pts.map(([x, y]) => [x, y * roll]);
-    g += `<g opacity="${1 - clamp(m * 1.6)}"><path d="M${n}L${c}L${b}Z" fill="${roll > 0 ? "#D9D5D1" : "#F1EFED"}"/>` +
-         `<path d="M${n}L${c}" stroke="#BDB7B1" stroke-width="1.6"/><path d="M${n}L${a}L${c}Z" fill="#FFFFFF" opacity="${roll > 0 ? 0 : .6}"/></g>`;
-  }
-  return g;
-}
 
 // where the plane is on screen at time t (world speed V carries it forward, so it only drifts on screen)
 function planeAt(t) {
@@ -297,55 +258,9 @@ function cellState(i, t) {
 }
 
 // ---- the end: a passport page with a stamp from every city ----
-const OLD = [   // shape, centre, rotation, size, ink, lines
-  ["circle", 190, 270, -12, 118, "#1D4ED8", ["VENEZIA", "ITALIA", "14 MAR 2026"]],
-  ["rect", 850, 235, 8, [280, 150], "#15803D", ["DAKAR", "SÉNÉGAL", "ARRIVÉE · 02 AVR 2026"]],
-  ["circle", 125, 830, 14, 100, "#B91C1C", ["ACCRA", "GHANA", "19 APR 2026"]],
-  ["rect", 958, 880, -9, [230, 140], "#6D28D9", ["DUBAI", "U.A.E.", "ARRIVAL · 07 MAY 2026"]],
-  ["circle", 225, 1735, -8, 112, "#047857", ["DHAKA", "BANGLADESH", "21 JUN 2026"]],
-  ["rect", 830, 1740, 6, [290, 160], "#1E3A8A", ["BANGKOK", "THAILAND", "ARRIVAL · 15 JUL 2026"]],
-];
+const OLD = Passport.OLD;
 const OLD_AT = FLY_END + 0.95, OLD_GAP = 0.16;
-{
-  const pp = document.getElementById("passport"), r = rng(9);
-  let h = `<defs>
-    <filter id="ink" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" result="n"/>
-      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.4 2" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter>
-    <filter id="ink2" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="8" result="n"/>
-      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.95" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter>
-    <linearGradient id="fold" x1="0" x2="1"><stop offset="0" stop-color="#8A7556" stop-opacity=".28"/><stop offset="1" stop-color="#8A7556" stop-opacity="0"/></linearGradient></defs>`;
-  // security print: fine wavy lines across the page
-  for (let i = 0; i < 64; i++) {
-    const y0 = i * 31, ph = i * 0.7;
-    let d = "";
-    for (let x = 0; x <= W; x += 12) d += `${x ? "L" : "M"}${x} ${(y0 + 9 * Math.sin(x / 70 + ph) + 5 * Math.sin(x / 23 - ph)).toFixed(1)}`;
-    h += `<path d="${d}" fill="none" stroke="${i % 2 ? "#BFD2C9" : "#E2C6BD"}" stroke-width="1.4" opacity=".55"/>`;
-  }
-  h += `<rect width="70" height="${H}" fill="url(#fold)"/>`;
-  h += `<text x="540" y="78" text-anchor="middle" font-family="Outfit" font-weight="600" font-size="24" letter-spacing="12" fill="#A39580">VISAS</text>`;
-  h += `<text x="540" y="1890" text-anchor="middle" font-family="Outfit" font-weight="600" font-size="24" fill="#A39580">07</text>`;
-  OLD.forEach(([shape, x, y, rot, size, ink, [a, b, c]], i) => {
-    let g = "";
-    if (shape === "circle") {
-      const rr = size, tr = rr - 32;
-      g += `<circle r="${rr}" fill="none" stroke="${ink}" stroke-width="6"/><circle r="${rr - 14}" fill="none" stroke="${ink}" stroke-width="2.5"/>`;
-      g += `<path id="arcT${i}" d="M${-tr} 0A${tr} ${tr} 0 0 1 ${tr} 0" fill="none"/><path id="arcB${i}" d="M${-tr - 20} 0A${tr + 20} ${tr + 20} 0 0 0 ${tr + 20} 0" fill="none"/>`;
-      g += `<text font-family="Outfit" font-weight="800" font-size="${rr * 0.26}" letter-spacing="4" fill="${ink}"><textPath href="#arcT${i}" startOffset="50%" text-anchor="middle">${a}</textPath></text>`;
-      g += `<text font-family="Outfit" font-weight="700" font-size="${rr * 0.17}" letter-spacing="3" fill="${ink}"><textPath href="#arcB${i}" startOffset="50%" text-anchor="middle">${b}</textPath></text>`;
-      g += `<text y="${rr * 0.16}" text-anchor="middle" font-family="Outfit" font-weight="700" font-size="${rr * 0.15}" fill="${ink}">${c}</text>`;
-      g += `<path transform="translate(0 ${-rr * 0.2}) scale(${rr / 260})" d="${PLANE}" fill="${ink}"/>`;
-    } else {
-      const [w, hh] = size;
-      g += `<rect x="${-w / 2}" y="${-hh / 2}" width="${w}" height="${hh}" rx="14" fill="none" stroke="${ink}" stroke-width="6"/>`;
-      g += `<rect x="${-w / 2 + 11}" y="${-hh / 2 + 11}" width="${w - 22}" height="${hh - 22}" rx="7" fill="none" stroke="${ink}" stroke-width="2.5"/>`;
-      g += `<text y="${-hh * 0.08}" text-anchor="middle" font-family="Outfit" font-weight="800" font-size="${hh * 0.27}" letter-spacing="4" fill="${ink}">${a}</text>`;
-      g += `<text y="${hh * 0.15}" text-anchor="middle" font-family="Outfit" font-weight="700" font-size="${hh * 0.13}" letter-spacing="3" fill="${ink}">${b}</text>`;
-      g += `<text y="${hh * 0.33}" text-anchor="middle" font-family="Outfit" font-weight="600" font-size="${hh * 0.11}" fill="${ink}">${c}</text>`;
-    }
-    h += `<g id="old${i}" data-x="${x}" data-y="${y}" data-rot="${rot}" opacity="0"><g filter="url(#ink)" opacity="${0.78 + 0.15 * r()}">${g}</g></g>`;
-  });
-  pp.innerHTML = h;
-}
+Passport.build(document.getElementById("passport"));
 
 // ---- one card spells FULKI, flips onto the logo, then a rubber stamp inks the plane in ----
 const CARD_W = 560, CARD_H = CARD_W * FH / FW, CARD_X = (W - CARD_W) / 2, CARD_Y = 470, K = CARD_W / FW;
@@ -368,17 +283,6 @@ const STAMP_AT = LOGO_AT + LOGO_FLIP + 0.3, COME = 0.42, HOVER = 0.18, PRESS = 0
 const HIT = STAMP_AT + COME + HOVER + PRESS, UP = HIT + HOLD_DOWN;
 const SPOT = { x: CARD_X + LOGO_PLANE.x * K, y: CARD_Y + LOGO_PLANE.y * K, s: LOGO_PLANE.s * K };
 
-// a rubber stamp seen from the side, its rubber face resting at (x, y)
-function stamper(x, y, squash) {
-  const sq = 1 - squash;
-  return `<g transform="translate(${x} ${y}) scale(${1.5 * (1 + squash * 0.3)} ${1.5 * sq})">` +
-    `<rect x="-92" y="-16" width="184" height="16" rx="3" fill="#1C1917"/><rect x="-92" y="-5" width="184" height="5" fill="#C2410C"/>` +
-    `<rect x="-100" y="-50" width="200" height="36" rx="8" fill="#292524"/><rect x="-100" y="-50" width="200" height="8" rx="4" fill="#57534E"/>` +
-    `<path d="M-38 -50L-22 -78H22L38 -50Z" fill="#78350F"/><rect x="-20" y="-188" width="40" height="112" fill="#A16207"/>` +
-    `<rect x="-20" y="-188" width="11" height="112" fill="#CA8A04" opacity=".6"/>` +
-    `<path d="M-20 -186Q-30 -200 -26 -206H26Q30 -200 20 -186Z" fill="#92400E"/>` +
-    `<ellipse cx="0" cy="-238" rx="58" ry="44" fill="#92400E"/><ellipse cx="-16" cy="-254" rx="24" ry="14" fill="#CA8A04" opacity=".45"/></g>`;
-}
 
 function stamp(t) {
   if (t < STAMP_AT) return "";
@@ -398,7 +302,7 @@ function stamp(t) {
     const near = clamp(1 - (base - y) / 400);
     g += `<ellipse cx="${x + 30 * (1 - near)}" cy="${base - 6}" rx="${165 - 30 * near}" ry="${30 - 10 * near}" fill="#000" ` +
          `opacity="${0.15 + 0.35 * near}" style="filter:blur(${4 + 16 * (1 - near)}px)"/>`;
-    g += stamper(x, y, squash);
+    g += Passport.stamper(x, y, squash);
   }
   return g;
 }
@@ -433,11 +337,7 @@ function render(t) {
   near.setAttribute("fill", pal.near);
   $("sink").setAttribute("transform", `translate(0 ${900 * out * out})`);
   $("passport").style.opacity = out;
-  OLD.forEach((o, i) => {
-    const k = clamp((t - OLD_AT - i * OLD_GAP) / 0.14), el = $("old" + i);
-    el.setAttribute("opacity", k > 0 ? 1 : 0);
-    el.setAttribute("transform", `translate(${o[1]} ${o[2]}) rotate(${o[3]}) scale(${1 + 0.25 * (1 - easeOut(k))})`);
-  });
+  OLD.forEach((o, i) => Passport.show(i, (t - OLD_AT - i * OLD_GAP) / 0.14));
 
   let svg = "", html = "";
   // the plane, folding itself into the Fulki plane over Dubai

@@ -1,0 +1,542 @@
+<!doctype html>
+<!-- Journey promo (1080x1920, 29.5 s, 100 bpm): a Fulki boarding pass to ANYWHERE folds itself into a paper plane and
+     takes off; the camera rises with it into space, where it flies Venezia → Dakar → Accra → Dubai → Dhaka → Bangkok
+     round a dotted globe, turning into the Fulki plane over Africa. The city pins become stamps on a passport page,
+     the flap card spells F U L K I, and the plane lands in its place on the logo and is stamped in.
+     Rendered by build.mjs, which calls render(t) for each frame and reads EVENTS for the sound. -->
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="flap.css">
+<style>
+  #stage { height: 1920px; background: #050914; }
+  #bg, #desk, #globe, #passport, #overlay { position: absolute; left: 0; top: 0; }
+  #bg { width: 1080px; height: 5760px;
+        background: linear-gradient(#050914 0, #0A1630 1500px, #0D1B3A 1920px, #1D3F75 2600px, #5B8CC9 3200px, #BFD6EA 3620px, #F4ECDF 3840px, #EDE2CE 5760px); }
+  #desk, #overlay { width: 1080px; height: 1920px; }
+  #passport { background: radial-gradient(ellipse at 55% 45%, #FBF6EC 0%, #EFE5D2 75%); }
+  .txt { position: absolute; left: 0; width: 100%; text-align: center; }
+  .w { position: absolute; left: 0; top: 0; width: 400px; height: 860px; transform-style: preserve-3d; }
+  .face { position: absolute; left: 0; top: 0; width: 400px; height: 860px; backface-visibility: hidden; }
+  .back { background: linear-gradient(160deg, #F1EBE1, #E6DDCF); transform: rotateY(180deg); }
+  .chip { position: absolute; transform: translate(-50%, -100%); background: #FFFFFF; border-radius: 22px; padding: 14px 28px 16px;
+          box-shadow: 0 14px 40px rgba(0, 0, 0, .35); text-align: center; white-space: nowrap; font-family: "Outfit", sans-serif; }
+  .chip b { display: block; font-size: 44px; font-weight: 800; color: #171717; letter-spacing: .03em; line-height: 1.05; }
+  .chip span { display: block; font-size: 24px; font-weight: 500; color: #78716C; margin-top: 2px; }
+  #fade { position: absolute; inset: 0; background: #0C0A09; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"><svg id="sky" width="1080" height="5760"></svg></div>
+  <div id="desk"><div id="sheetShadow"></div><div id="sheetBox" style="position:absolute;inset:0;perspective:2400px;perspective-origin:540px 1010px"></div></div>
+  <canvas id="globe" width="1080" height="1920"></canvas>
+  <svg id="passport" width="1080" height="1920"></svg>
+  <div id="overlay"></div>
+  <div id="fade"></div>
+</div>
+<script src="flap.js"></script>
+<script src="paperplane.js"></script>
+<script src="passport.js"></script>
+<script src="dotmap.js"></script>
+<script>
+const W = 1080, H = 1920, DUR = 29.5, BEAT = 0.6;
+const clamp = v => Math.max(0, Math.min(1, v));
+const ease = v => (v = clamp(v), v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2);
+const easeOut = v => 1 - Math.pow(1 - clamp(v), 3);
+const easeIn = v => Math.pow(clamp(v), 3);
+const fadeIn = (t, a, d = 0.5) => clamp((t - a) / d);
+const lerp = (a, b, k) => a + (b - a) * k;
+const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+const mix = (a, b, k) => { const x = hex(a), y = hex(b); return `rgb(${x.map((v, i) => Math.round(lerp(v, y[i], k))).join(",")})`; };
+const lerpAngle = (a, b, k) => a + (((b - a) % 360 + 540) % 360 - 180) * k;
+function rng(seed) {   // mulberry32
+  return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let x = Math.imul(seed ^ seed >>> 15, 1 | seed);
+                 x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
+}
+const $ = id => document.getElementById(id);
+
+// ================= timeline (beats at 100 bpm land the folds, flips, pins and the stamp on the music) =================
+const TURN = [1.2, 1.8];                               // the pass turns upright
+const FOLD1 = [1.95, 2.4], FOLD2 = [2.55, 3.0], FOLD3 = [3.15, 3.6];
+const POSE = [3.6, 4.2], SWAP = [4.2, 4.32];           // turns to point the way, then opens its wings
+const LAUNCH = [4.32, 6.0];                            // takes off; the camera rises into space
+const LEG0 = 6.0, LEG = 1.8;                           // five legs round the globe
+const OVER = LEG0 + 5 * LEG;                           // 15.0: zoom out on every route
+const PAGE = 16.8;                                     // the passport page
+const PIN_AT = i => 16.9 + i * 0.3, PIN_FLY = 0.3;     // each pin flies to its stamp
+const CARD_IN = 18.6;
+const FLIP = 0.17, LOGO_FLIP = 0.42;
+const LAND = [22.6, 23.6];                             // the plane flies back and lands on the logo
+const HIT = 24.6, STAMP_AT = HIT - 0.7;                // the rubber stamp comes down on it
+
+// ================= scene 1: the boarding pass folds into a paper plane =================
+const SW = 400, SH = 860, Y2 = (SW / 2) / Math.tan(Math.PI / 8), YC = (SW / 2) ** 2 / Y2;
+const PASS = (() => {
+  const r = rng(21);
+  let bars = "";
+  for (let x = 652; x < 826;) { const w = 2 + Math.floor(r() * 5); if (r() < 0.62) bars += `<rect x="${x}" y="262" width="${w}" height="98"/>`; x += w + 1 + Math.floor(r() * 3); }
+  const lab = (x, y, s) => `<text x="${x}" y="${y}" font-size="15" font-weight="600" letter-spacing="3" fill="#A8A29E">${s}</text>`;
+  const val = (x, y, s, size = 30, fill = "#1C1917") => `<text x="${x}" y="${y}" font-size="${size}" font-weight="800" fill="${fill}">${s}</text>`;
+  const f = `<g fill="#F97316"><rect x="668" y="130" width="13" height="52"/><rect x="668" y="130" width="34" height="12"/><rect x="668" y="150" width="27" height="11"/></g>`;
+  const inner = `<g font-family="Outfit">
+    <rect width="860" height="400" rx="26" fill="#FFFDF8"/>
+    <path d="M0 26A26 26 0 0 1 26 0H834A26 26 0 0 1 860 26V92H0Z" fill="#EA580C"/>
+    <text x="40" y="58" font-size="30" font-weight="800" letter-spacing="2" fill="#FFFFFF">FULKI TRAVEL &amp; TOURS</text>
+    <text x="820" y="56" text-anchor="end" font-size="18" font-weight="600" letter-spacing="5" fill="#FFEDD5">BOARDING PASS</text>
+    <line x1="612" y1="92" x2="612" y2="400" stroke="#D6D3D1" stroke-width="3" stroke-dasharray="7 9"/>
+    ${lab(40, 140, "FROM")}${val(40, 192, "VENEZIA", 44)}${val(40, 228, "VCE", 22, "#EA580C")}
+    <path transform="translate(280 176) scale(0.36)" d="${PLANE}" fill="#EA580C"/>
+    ${lab(330, 140, "TO")}${val(330, 192, "ANYWHERE", 44)}${val(330, 228, "? ? ?", 22, "#EA580C")}
+    <line x1="40" y1="258" x2="584" y2="258" stroke="#E7E5E4" stroke-width="2"/>
+    ${lab(40, 294, "PASSENGER")}${val(40, 336, "YOU")}${lab(200, 294, "DATE")}${val(200, 336, "TODAY")}
+    ${lab(370, 294, "GATE")}${val(370, 336, "F")}${lab(470, 294, "SEAT")}${val(470, 336, "1A")}
+    <rect x="652" y="118" width="64" height="78" rx="10" fill="#292524"/>${f}
+    <text x="730" y="168" font-size="28" font-weight="800" fill="#1C1917">FULKI</text>
+    <text x="652" y="236" font-size="16" font-weight="600" letter-spacing="2" fill="#78716C">GATE F · SEAT 1A</text>
+    <g fill="#292524">${bars}</g></g>`;
+  // the sheet is portrait (400 x 860) with the nose at the top; the pass is printed across it
+  return `<svg width="${SW}" height="${SH}" style="position:absolute;left:0;top:0"><g transform="translate(0 ${SH}) rotate(-90)">${inner}</g></svg>`;
+})();
+const poly = pts => `polygon(${pts.map(([x, y]) => `${x}px ${y}px`).join(",")})`;
+const mirror = pts => pts.map(([x, y]) => [SW - x, y]);
+function sheetFace(pts, shade) {
+  const sh = shade > 0 ? `<div style="position:absolute;inset:0;background:#000;opacity:${shade}"></div>` : "";
+  return `<div class="face" style="clip-path:${poly(pts)}">${PASS}${sh}</div>` +
+         `<div class="face back" style="clip-path:${poly(mirror(pts))}">${sh}</div>`;
+}
+// a fold: inner turns about a line through the nose; lift raises it off the sheet once folded, so the layers stack cleanly
+const wrap = (ax, ay, deg, inner, lift = 0) => `<div class="w" style="transform-origin:${SW / 2}px 0 0;transform:rotate3d(${ax},${ay},0,${deg}deg)">` +
+  (lift ? `<div class="w" style="transform:translateZ(${-lift}px)">${inner}</div>` : inner) + `</div>`;
+// pieces of the left half, in sheet coordinates before any fold (the right half mirrors them)
+const LB = [[200, 0], [200, SH], [0, SH], [0, Y2]];   // stays put until the sheet folds in half
+const L2 = [[200, 0], [0, 200], [0, Y2]];             // second fold
+const CA = [[200, 0], [0, 0], [0, YC]];               // corner, landing outside the second fold
+const CB = [[200, 0], [0, YC], [0, 200]];             // corner, landing inside it (so it folds again)
+function side(s, a1, a2) {
+  // s = 1 left, -1 right: corners fold over the slanted edge, then the slanted edge folds to the centre line
+  const P = s > 0 ? x => x : mirror;
+  const sh = d => 0.16 * Math.abs(Math.sin(d * Math.PI / 180));
+  const corner = pts => wrap(-s, 1, s * a1, sheetFace(P(pts), sh(a1)), 2);
+  return sheetFace(P(LB), 0) + corner(CA) + wrap(-s * 200, Y2, s * a2, sheetFace(P(L2), sh(a2)) + corner(CB), 4);
+}
+function sheet(t) {
+  const a1L = 180 * ease((t - FOLD1[0]) / 0.45), a1R = 180 * ease((t - FOLD1[0] - 0.05) / 0.4);
+  const a2L = 180 * ease((t - FOLD2[0]) / 0.45), a2R = 180 * ease((t - FOLD2[0] - 0.05) / 0.4);
+  const a3 = 178 * ease((t - FOLD3[0]) / 0.45);
+  return side(-1, a1R, a2R) + wrap(0, 1, -a3, side(1, a1L, a2L));
+}
+// where the sheet is: centre, rotation, scale and how far it is squeezed into a line before it becomes the plane
+function sheetPose(t) {
+  const intro = easeOut((t - 0.1) / 0.8), half = ease((t - FOLD3[0]) / 0.45), pose = ease((t - POSE[0]) / (POSE[1] - POSE[0]));
+  const rot = lerp(90, 0, ease((t - TURN[0]) / (TURN[1] - TURN[0]))) + 30 * pose;
+  const s = lerp(0.96, 1, intro) * lerp(1, 0.92, ease((t - TURN[0]) / 0.6)) * lerp(1, 0.42, pose);
+  return { cx: 540, cy: lerp(1070, 1010, intro) + 70 * pose, rot, s, half, squeeze: clamp((t - SWAP[0]) / (SWAP[1] - SWAP[0])) };
+}
+function renderSheet(t, offY) {
+  const box = $("sheetBox"), shadow = $("sheetShadow");
+  if (t >= SWAP[1]) { box.innerHTML = ""; shadow.innerHTML = ""; return; }
+  const p = sheetPose(t), a = p.rot * Math.PI / 180;
+  // keep what is visible centred: after the fold in half that is the right half, 100 units right of the sheet's centre
+  const off = 100 * p.half * p.s, ox = p.cx - Math.cos(a) * off, oy = p.cy - Math.sin(a) * off;
+  const tf = `translate(${ox - 540}px,${oy - 1010 + offY}px) rotate(${p.rot}deg) scale(${p.s})`;
+  box.style.perspectiveOrigin = `540px ${1010 + offY}px`;
+  box.innerHTML = `<div class="w" style="left:340px;top:580px;transform-origin:200px 430px;transform:${tf}">` +
+                  `<div class="w" style="transform-origin:300px 430px;transform:scaleX(${1 - p.squeeze})">${sheet(t)}</div></div>`;
+  // a soft shadow on the desk, narrowing as the sheet is folded
+  const wf = 1 - 0.18 * ease((t - FOLD1[0]) / 0.45) - 0.22 * ease((t - FOLD2[0]) / 0.45) - 0.3 * p.half;
+  shadow.innerHTML = `<div style="position:absolute;left:340px;top:580px;width:400px;height:860px;transform-origin:200px 430px;` +
+    `transform:translate(${ox - 540 + 14}px,${oy - 1010 + 26 + offY}px) rotate(${p.rot}deg) scale(${p.s * wf * (1 - p.squeeze)},${p.s * 0.98});` +
+    `background:#3B2A14;border-radius:30px;opacity:.22;filter:blur(22px)"></div>`;
+}
+
+// ================= scene 2: the globe =================
+const CITIES = [
+  { name: "VENEZIA", country: "Italy", at: [12.34, 45.44] },
+  { name: "DAKAR", country: "Senegal", at: [-17.45, 14.69] },
+  { name: "ACCRA", country: "Ghana", at: [-0.19, 5.6] },
+  { name: "DUBAI", country: "United Arab Emirates", at: [55.27, 25.2] },
+  { name: "DHAKA", country: "Bangladesh", at: [90.41, 23.81] },
+  { name: "BANGKOK", country: "Thailand", at: [100.5, 13.75] },
+];
+const CAPTIONS = ["Flights worldwide", "One-way, return, multi-city", "We compare airlines for you",
+                  "Support in person, in 5 languages", "Before, during and after your trip"];
+const RAD = Math.PI / 180;
+const vec = ([lon, lat]) => [Math.cos(lat * RAD) * Math.cos(lon * RAD), Math.cos(lat * RAD) * Math.sin(lon * RAD), Math.sin(lat * RAD)];
+const geo = v => [Math.atan2(v[1], v[0]) / RAD, Math.asin(Math.max(-1, Math.min(1, v[2]))) / RAD];
+function slerp(a, b, u) {
+  const d = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))), s = Math.sin(d);
+  const ka = Math.sin((1 - u) * d) / s, kb = Math.sin(u * d) / s;
+  return [a[0] * ka + b[0] * kb, a[1] * ka + b[1] * kb, a[2] * ka + b[2] * kb];
+}
+const CV = CITIES.map(c => vec(c.at));
+const legU = k => 0.45 * k + 0.55 * (k - Math.sin(2 * Math.PI * k) / (2 * Math.PI));   // slows a little at each city
+const arrive = i => LEG0 + i * LEG;                                                      // city i (1..5) reached
+// the plane's place on the route: unit vector and height above the ground (in globe radii)
+function planeGeo(t) {
+  if (t < LEG0) return { v: CV[0], alt: 0.05 };
+  if (t < OVER) {
+    const k = Math.floor((t - LEG0) / LEG), u = legU((t - LEG0) / LEG - k);
+    return { v: slerp(CV[k], CV[k + 1], u), alt: 0.05 + 0.1 * Math.sin(Math.PI * u), leg: k, u };
+  }
+  // after Bangkok it carries on east, climbing off the globe towards us
+  const e = (t - OVER) / 1.0;
+  return { v: slerp(CV[4], CV[5], 1 + 0.9 * e), alt: 0.05 + 1.4 * e * e, leg: 5 };
+}
+const OVERVIEW = { lon: 42, lat: 24, R: 405 };
+function camera(t) {
+  const back = planeGeo(Math.max(LEG0, Math.min(OVER, t) - 0.3)), [lon, lat] = geo(back.v);
+  const z = ease((t - OVER) / 1.3), zin = easeOut((t - LAUNCH[0]) / 1.8);
+  return { lon: lerp(lon, OVERVIEW.lon, z), lat: lerp(lat, OVERVIEW.lat, z), R: lerp(lerp(470, 560, zin), OVERVIEW.R, z) };
+}
+const GC = [540, 1060];
+function project(cam, v, alt = 0) {
+  const [lon, lat] = geo(v), l = (lon - cam.lon) * RAD, p = lat * RAD, p0 = cam.lat * RAD;
+  const x = Math.cos(p) * Math.sin(l), y = Math.cos(p0) * Math.sin(p) - Math.sin(p0) * Math.cos(p) * Math.cos(l);
+  const z = Math.sin(p0) * Math.sin(p) + Math.cos(p0) * Math.cos(p) * Math.cos(l), k = cam.R * (1 + alt);
+  return { x: GC[0] + k * x, y: GC[1] - k * y, z, vis: z > 0 || Math.hypot(x, y) * (1 + alt) > 1 };
+}
+const DOT = DOTS.map(([lon, lat]) => [lon, Math.sin(lat * RAD), Math.cos(lat * RAD)]);
+const STARS = (() => { const r = rng(4); return Array.from({ length: 160 }, () => [r() * W, r() * H, 0.6 + r() * 1.8, r() * 6.28]); })();
+
+function drawGlobe(t, offY, alpha) {
+  const g = $("globe").getContext("2d");
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, W, H);
+  if (alpha <= 0) return null;
+  g.globalAlpha = alpha;
+  g.translate(0, offY);
+  const cam = camera(t), R = cam.R, [cx, cy] = GC;
+  // stars, twinkling
+  for (const [x, y, r, ph] of STARS) {
+    g.fillStyle = `rgba(245,245,244,${0.35 + 0.35 * Math.sin(t * 2.2 + ph)})`;
+    g.beginPath(); g.arc(x, y - offY * 0.6, r, 0, 6.283); g.fill();
+  }
+  // atmosphere, ocean, sheen
+  let gr = g.createRadialGradient(cx, cy, R * 0.92, cx, cy, R * 1.28);
+  gr.addColorStop(0, "rgba(96,165,250,.42)"); gr.addColorStop(1, "rgba(96,165,250,0)");
+  g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, R * 1.28, 0, 6.283); g.fill();
+  gr = g.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);
+  gr.addColorStop(0, "#1F5596"); gr.addColorStop(1, "#071A38");
+  g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, R, 0, 6.283); g.fill();
+  // graticule
+  g.strokeStyle = "rgba(147,197,253,.10)"; g.lineWidth = 1.5;
+  const line = pts => { let on = false; g.beginPath(); for (const p of pts) { if (p.z > 0) { on ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); on = true; } else on = false; } g.stroke(); };
+  for (let lat = -60; lat <= 60; lat += 20) line(Array.from({ length: 73 }, (_, i) => project(cam, vec([i * 5 - 180, lat]))));
+  for (let lon = -180; lon < 180; lon += 20) line(Array.from({ length: 37 }, (_, i) => project(cam, vec([lon, i * 5 - 90]))));
+  // land, as dots, shrinking and dimming towards the rim
+  const sp0 = Math.sin(cam.lat * RAD), cp0 = Math.cos(cam.lat * RAD), dr = R / 560 * 3.6;
+  const buckets = [[], [], [], [], []];
+  for (const [lon, sp, cp] of DOT) {
+    const l = (lon - cam.lon) * RAD, cl = Math.cos(l), z = sp0 * sp + cp0 * cp * cl;
+    if (z <= 0.02) continue;
+    buckets[Math.min(4, Math.floor(z * 5))].push(cx + R * cp * Math.sin(l), cy - R * (cp0 * sp - sp0 * cp * cl), dr * (0.5 + 0.5 * z));
+  }
+  buckets.forEach((b, i) => {
+    g.fillStyle = `rgba(165,205,250,${0.3 + 0.16 * i})`;
+    g.beginPath();
+    for (let j = 0; j < b.length; j += 3) { g.moveTo(b[j] + b[j + 2], b[j + 1]); g.arc(b[j], b[j + 1], b[j + 2], 0, 6.283); }
+    g.fill();
+  });
+  gr = g.createRadialGradient(cx - R * 0.45, cy - R * 0.5, 0, cx - R * 0.45, cy - R * 0.5, R * 0.9);
+  gr.addColorStop(0, "rgba(255,255,255,.10)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, R, 0, 6.283); g.fill();
+  g.strokeStyle = "rgba(147,197,253,.45)"; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, R, 0, 6.283); g.stroke();
+
+  // routes flown so far, lifted off the ground, dotted
+  const pg = planeGeo(t);
+  for (let k = 0; k < 5; k++) {
+    if (t < LEG0 + k * LEG) break;
+    const end = t >= LEG0 + (k + 1) * LEG ? 1 : pg.u, cur = pg.leg === k;
+    const pts = [];
+    for (let i = 0; i <= 60 * end; i++) { const u = i / 60; pts.push(project(cam, slerp(CV[k], CV[k + 1], u), 0.05 + 0.1 * Math.sin(Math.PI * u))); }
+    if (t < LEG0 + (k + 1) * LEG) pts.push(project(cam, pg.v, pg.alt));
+    g.setLineDash([1, cur ? 15 : 13]); g.lineCap = "round"; g.lineWidth = cur ? 7 : 5;
+    g.strokeStyle = cur ? "#F97316" : "rgba(251,146,60,.75)";
+    let on = false; g.beginPath();
+    for (const p of pts) { if (p.vis) { on ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); on = true; } else on = false; }
+    g.stroke(); g.setLineDash([]);
+  }
+  // pins: Venezia from the start, the others as the plane reaches them
+  const pins = [];
+  CITIES.forEach((c, i) => {
+    const at = i ? arrive(i) : LEG0 - 0.2;
+    if (t < at) return;
+    const p = project(cam, CV[i]);
+    pins.push(p);
+    if (p.z <= 0) return;
+    const k = (t - at) / 0.9;
+    if (k < 1) { g.strokeStyle = `rgba(249,115,22,${0.8 * (1 - k)})`; g.lineWidth = 5 * (1 - k) + 1; g.beginPath(); g.arc(p.x, p.y, 10 + 60 * easeOut(k), 0, 6.283); g.stroke(); }
+    const r = 11 * (k < 0.3 ? easeOut(k / 0.3) * 1.25 : 1 + 0.25 * (1 - clamp((k - 0.3) / 0.3)));
+    g.fillStyle = "#F97316"; g.strokeStyle = "#FFFFFF"; g.lineWidth = 4;
+    g.beginPath(); g.arc(p.x, p.y, r, 0, 6.283); g.fill(); g.stroke();
+  });
+  return { cam, pins };
+}
+
+// ================= the plane, all the way through =================
+const MORPH_AT = LEG0 + 2 * LEG + 0.3, MORPH_T = 1.1;   // over the Gulf of Guinea, on the way to Dubai
+const morphAt = t => ease((t - MORPH_AT) / MORPH_T);
+// screen pose: { x, y, angle, s (scale of the 100-unit plane), wings (0..1), m (paper..Fulki), alpha, alt }
+function planeOnGlobe(t) {
+  const cam = camera(t), pg = planeGeo(t), p = project(cam, pg.v, pg.alt);
+  const q = project(cam, planeGeo(t + 1 / 60).v, planeGeo(t + 1 / 60).alt);
+  return { x: p.x, y: p.y, angle: Math.atan2(q.y - p.y, q.x - p.x) / RAD, s: 1.45 * (1 + 1.3 * Math.max(0, pg.alt - 0.15)), alt: pg.alt };
+}
+function planePose(t, offY) {
+  if (t < SWAP[0]) return null;
+  if (t < LAUNCH[0]) {   // opening its wings where the folded sheet was
+    const sp = sheetPose(t);
+    return { x: sp.cx, y: sp.cy + offY, angle: sp.rot - 90, s: 3.2, wings: easeOut((t - SWAP[0]) / 0.14), m: 0, alpha: 1, alt: 0.3 };
+  }
+  if (t < LEG0) {   // takes off: a curve up the screen, then down onto Venezia as the globe arrives
+    const k = (t - LAUNCH[0]) / (LAUNCH[1] - LAUNCH[0]), sp = sheetPose(LAUNCH[0]);
+    const end = planeOnGlobe(LEG0), S = [sp.cx, sp.cy], M = [560, 520], E = [end.x, end.y];
+    const bez = u => [0, 1].map(i => (1 - u) ** 2 * S[i] + 2 * (1 - u) * u * M[i] + u * u * E[i]);
+    const u = ease(k), [x, y] = bez(u), [x2, y2] = bez(Math.min(1, u + 0.01));
+    const heading = u < 0.99 ? Math.atan2(y2 - y, x2 - x) / RAD : end.angle;
+    const angle = k < 0.15 ? lerpAngle(sp.rot - 90, heading, k / 0.15) : lerpAngle(heading, end.angle, ease((k - 0.75) / 0.25));
+    return { x, y, angle, s: lerp(3.2, end.s, easeOut(k * 1.3)), wings: 1, m: 0, alpha: 1, alt: lerp(0.3, 0.05, k) };
+  }
+  if (t < OVER + 1.0) {
+    const p = planeOnGlobe(t);
+    return { ...p, wings: 1, m: morphAt(t), alpha: 1 - clamp((t - OVER - 0.5) / 0.5) };
+  }
+  if (t >= LAND[0]) {   // flies back over the passport and lands on the logo
+    const k = clamp((t - LAND[0]) / (LAND[1] - LAND[0])), S = [1260, 300], C1 = [640, 40], C2 = [230, 760], E = [SPOT.x, SPOT.y];
+    const bez = u => [0, 1].map(i => (1 - u) ** 3 * S[i] + 3 * (1 - u) ** 2 * u * C1[i] + 3 * (1 - u) * u * u * C2[i] + u ** 3 * E[i]);
+    const u = 1 - Math.pow(1 - k, 2.2), [x, y] = bez(u), [x2, y2] = bez(Math.min(1, u + 0.01));
+    const angle = lerpAngle(Math.atan2(y2 - y, x2 - x) / RAD, 0, ease((k - 0.55) / 0.45));
+    return { x, y, angle, s: lerp(2.3, SPOT.s, Math.pow(k, 1.4)), wings: 1, m: 1, alpha: 1, alt: 1 - k };
+  }
+  return null;
+}
+function drawPlane(p) {
+  const shadow = `<g transform="translate(${p.x + 40 * p.alt + 8} ${p.y + 60 * p.alt + 10}) rotate(${p.angle}) scale(${p.s} ${p.s * p.wings})" ` +
+                 `opacity="${0.3 * p.alpha}" style="filter:blur(${4 + 10 * p.alt}px)">${PaperPlane.shape(p.m, 1).replace(/fill="[^"]+"/g, 'fill="#000"')}</g>`;
+  const roll = p.m > 0 && p.m < 1 ? Math.cos(2 * Math.PI * p.m) : 1;
+  return shadow + `<g transform="translate(${p.x} ${p.y}) rotate(${p.angle}) scale(${p.s} ${p.s * p.wings})" opacity="${p.alpha}">${PaperPlane.shape(p.m, roll)}</g>`;
+}
+function contrail(t) {
+  const m = morphAt(t);
+  if (t < LEG0 || t > OVER + 0.8 || m <= 0) return "";
+  const cam = camera(t), pts = [];
+  for (let tau = 0; tau <= 0.55; tau += 0.03) {
+    const pg = planeGeo(Math.max(LEG0, t - tau)), p = project(cam, pg.v, pg.alt);
+    pts.push([p.x, p.y]);
+  }
+  let s = "";
+  for (let i = 1; i < pts.length; i++)
+    s += `<line x1="${pts[i - 1][0]}" y1="${pts[i - 1][1]}" x2="${pts[i][0]}" y2="${pts[i][1]}" stroke="#FFFFFF" stroke-linecap="round" ` +
+         `stroke-width="${7 * (1 - i / pts.length)}" opacity="${m * 0.8 * (1 - i / pts.length)}"/>`;
+  return s;
+}
+function sparkles(t, p) {
+  if (!p || t < MORPH_AT || t > MORPH_AT + MORPH_T + 0.9) return "";
+  const r = rng(3);
+  let s = "";
+  for (let i = 0; i < 30; i++) {
+    const born = MORPH_AT + r() * MORPH_T, life = 0.5 + r() * 0.4, k = (t - born) / life;
+    const a = r() * 6.283, d = 40 + r() * 120, size = 8 + r() * 14, c = r() < 0.5 ? "#FFFFFF" : "#FDBA74";
+    if (k < 0 || k > 1) continue;
+    const x = p.x + Math.cos(a) * d * easeOut(k), y = p.y + Math.sin(a) * d * easeOut(k), z = size * Math.sin(k * Math.PI);
+    s += `<path transform="translate(${x} ${y}) rotate(${k * 90})" fill="${c}" d="M0 ${-z}Q${z * .15} ${-z * .15} ${z} 0Q${z * .15} ${z * .15} 0 ${z}Q${-z * .15} ${z * .15} ${-z} 0Q${-z * .15} ${-z * .15} 0 ${-z}Z"/>`;
+  }
+  return s;
+}
+
+// ================= departures board: NOW FLYING TO <city> =================
+const CELLS = 8, CW = 92, CGAP = 8, BOARD_X = (W - (CELLS * CW + (CELLS - 1) * CGAP)) / 2, BOARD_Y = 196, BFLIP = 0.15;
+const pad = s => { const l = Math.floor((CELLS - s.length) / 2); return (" ".repeat(l) + s).padEnd(CELLS).split(""); };
+const boardFlips = Array.from({ length: CELLS }, () => []);
+for (let k = 0; k < 6; k++) {
+  const at = k === 0 ? 5.25 : LEG0 + (k - 1) * LEG - 0.1, prev = k ? pad(CITIES[k - 1].name) : pad("");
+  pad(CITIES[k].name).forEach((ch, i) => { if (ch !== prev[i]) boardFlips[i].push({ t: at + i * 0.045, from: prev[i], to: ch }); });
+}
+function cellState(i, t) {
+  let rest = " ";
+  for (const f of boardFlips[i]) {
+    if (t < f.t) break;
+    if (t < f.t + BFLIP) return [f.from, f.to, (t - f.t) / BFLIP];
+    rest = f.to;
+  }
+  return [rest, null, null];
+}
+
+// ================= scene 3: the passport page, the card and the stamp =================
+const OLD = Passport.OLD;
+Passport.build($("passport"));
+const CARD_W = 560, CARD_H = CARD_W * FH / FW, CARD_X = (W - CARD_W) / 2, CARD_Y = 470, K = CARD_W / FW;
+const SPOT = { x: CARD_X + LOGO_PLANE.x * K, y: CARD_Y + LOGO_PLANE.y * K, s: LOGO_PLANE.s * K };
+const LOGO = { ch: "LOGO", plane: false };
+const flips = [];
+{
+  let cur = " ";
+  ["F", "U", "L", "K", "I"].forEach((ch, k) => { flips.push({ t: CARD_IN + 0.6 * (k + 1) - FLIP, from: cur, to: ch, dur: FLIP }); cur = ch; });
+  flips.push({ t: CARD_IN + 3.9 - LOGO_FLIP, from: cur, to: LOGO, dur: LOGO_FLIP });
+}
+function cardState(t) {
+  let rest = " ";
+  for (const f of flips) {
+    if (t < f.t) break;
+    if (t < f.t + f.dur) return { a: f.from, b: f.to, p: (t - f.t) / f.dur };
+    rest = f.to;
+  }
+  return { a: rest, b: null, p: null };
+}
+const COME = 0.42, HOVER = 0.18, PRESS = 0.1, HOLD_DOWN = 0.2, LIFT = 0.55, UP = HIT + HOLD_DOWN;
+function stamp(t) {
+  if (t < STAMP_AT) return "";
+  let g = "";
+  let y, x = SPOT.x, squash = 0;
+  const base = SPOT.y + 44;
+  if (t < STAMP_AT + COME) y = lerp(-420, base - 220, easeOut((t - STAMP_AT) / COME));
+  else if (t < STAMP_AT + COME + HOVER) y = base - 220 - 18 * Math.sin((t - STAMP_AT - COME) / HOVER * Math.PI);
+  else if (t < HIT) { const k = (t - STAMP_AT - COME - HOVER) / PRESS; y = lerp(base - 220, base, k * k); }
+  else if (t < UP) { y = base; squash = 0.07 * Math.sin(clamp((t - HIT) / HOLD_DOWN) * Math.PI); }
+  else { const k = clamp((t - UP) / LIFT); y = lerp(base, -480, k * k); x += 300 * k * k; }
+  if (t < UP + LIFT) {
+    const near = clamp(1 - (base - y) / 400);
+    g += `<ellipse cx="${x + 30 * (1 - near)}" cy="${base - 6}" rx="${165 - 30 * near}" ry="${30 - 10 * near}" fill="#000" ` +
+         `opacity="${0.15 + 0.35 * near}" style="filter:blur(${4 + 16 * (1 - near)}px)"/>`;
+    g += Passport.stamper(x, y, squash);
+  }
+  return g;
+}
+
+// ================= sound =================
+const EVENTS = [{ kind: "music", t: 0, bpm: 100, intro: [0, LEG0], groove: [LEG0, PAGE], break: [PAGE, HIT], outro: [HIT, DUR + 1],
+                  risers: [[4.2, LEG0], [HIT - 1.2, HIT]], hit: HIT }];
+EVENTS.push({ t: 0.3, kind: "fold", gain: 0.35 }, { t: TURN[1] - 0.05, kind: "fold", gain: 0.4 });
+for (const [a, g] of [[FOLD1[1], 0.8], [FOLD1[1] + 0.05, 0.6], [FOLD2[1], 0.8], [FOLD2[1] + 0.05, 0.6], [FOLD3[1], 1]]) EVENTS.push({ t: a, kind: "fold", gain: g });
+EVENTS.push({ t: SWAP[0] - 0.05, kind: "whoosh", dur: 0.5 }, { t: LAUNCH[0] + 0.1, kind: "whoosh", dur: 1.7 });
+boardFlips.forEach((fs, i) => fs.forEach(f => EVENTS.push({ t: f.t + BFLIP, kind: "small", gain: 0.3, pan: (i - 3.5) / 5 })));
+for (let i = 1; i <= 5; i++) EVENTS.push({ t: arrive(i), kind: "pop", gain: 0.8 });
+EVENTS.push({ t: LEG0 - 0.2, kind: "pop", gain: 0.6 }, { t: MORPH_AT, kind: "sparkle" }, { t: OVER, kind: "whoosh", dur: 1.1 });
+OLD.forEach((o, i) => EVENTS.push({ t: PIN_AT(i) + PIN_FLY, kind: "stamp", gain: 0.32, pan: (o[1] - 540) / 700 }));
+EVENTS.push({ t: CARD_IN + 0.2, kind: "small", gain: 0.6 });
+flips.forEach(f => EVENTS.push({ t: f.t + f.dur, kind: f.dur > 0.2 ? "big" : "small" }));
+EVENTS.push({ t: LAND[0], kind: "whoosh", dur: 1.1 }, { t: LAND[1], kind: "small", gain: 0.35 }, { t: STAMP_AT, kind: "whoosh", dur: COME + 0.1 },
+            { t: HIT, kind: "stamp" }, { t: UP + 0.1, kind: "whoosh", dur: 0.5 });
+
+// ================= frame =================
+function render(t) {
+  // camera rise from the desk to space: the background moves down 3840 px
+  const rise = ease((t - 4.45) / 1.55), bgY = -3840 * (1 - rise);
+  $("bg").style.transform = `translateY(${bgY}px)`;
+  const deskY = bgY + 3840;
+  $("desk").style.transform = `translateY(${deskY}px)`;
+  $("desk").style.display = deskY > H ? "none" : "block";
+  renderSheet(t, 0);
+
+  const page = ease((t - PAGE) / 0.6);
+  const globe = drawGlobe(t, bgY, bgY > -H && t < PAGE + 0.7 ? 1 - page : 0);
+  $("globe").style.transform = `scale(${1 - 0.08 * page})`;
+  $("passport").style.opacity = page;
+  OLD.forEach((o, i) => Passport.show(i, (t - PIN_AT(i) - PIN_FLY) / 0.14));
+
+  let svg = "", html = "";
+  // title on the desk
+  const ti = fadeIn(t, 0.4, 0.6) * (1 - fadeIn(t, 3.3, 0.4));
+  if (ti > 0) html += `<div class="txt" style="top:${300 + (1 - easeOut(fadeIn(t, 0.4, 0.6))) * 20 + deskY}px;font-size:100px;font-weight:800;color:#1C1917;opacity:${ti}">` +
+                      `Where to <span style="color:#EA580C">next?</span></div>`;
+
+  // the plane
+  const p = planePose(t, deskY);
+  if (p && t < PAGE) {
+    if (t >= LEG0) svg += contrail(t);
+    svg += drawPlane(p) + sparkles(t, p);
+  }
+
+  // the board, chips and captions over the globe
+  const bo = fadeIn(t, 5.1, 0.4) * (1 - fadeIn(t, OVER + 0.1, 0.4));
+  if (bo > 0) {
+    html += `<div style="position:absolute;left:${BOARD_X - 34}px;top:${BOARD_Y - 92}px;width:${CELLS * CW + (CELLS - 1) * CGAP + 68}px;height:236px;` +
+            `border-radius:30px;background:rgba(5,9,20,.82);border:2px solid rgba(147,197,253,.18);opacity:${bo}"></div>`;
+    html += `<div class="txt" style="top:${BOARD_Y - 66}px;font-size:26px;font-weight:600;letter-spacing:.45em;color:#93A3B8;opacity:${bo}">` +
+            `${t < LEG0 - 0.1 ? "DEPARTING FROM" : "NOW FLYING TO"}</div>`;
+    let cells = "";
+    for (let i = 0; i < CELLS; i++) {
+      const [a, b, q] = cellState(i, t);
+      cells += card(BOARD_X + i * (CW + CGAP), BOARD_Y, CW, { ch: a, white: true }, b === null ? null : { ch: b, white: true }, q);
+    }
+    html += `<div style="position:absolute;inset:0;opacity:${bo}">${cells}</div>`;
+  }
+  if (globe) {
+    CITIES.forEach((c, i) => {
+      const at = i ? arrive(i) : LEG0 - 0.2, end = Math.min(at + 1.3, i < 5 ? arrive(i + 1) - 0.25 : OVER + 0.3);
+      if (t < at || t > end + 0.25) return;
+      const pin = globe.pins[i];
+      if (!pin || pin.z <= 0) return;
+      const pop = clamp((t - at) / 0.3), out = clamp((t - end) / 0.25);
+      const sc = (0.6 + 0.4 * easeOut(pop) + Math.sin(pop * Math.PI) * 0.08) * (1 - 0.2 * out);
+      html += `<div class="chip" style="left:${Math.min(W - 220, Math.max(220, pin.x))}px;top:${pin.y - 30}px;opacity:${pop * (1 - out)};` +
+              `transform:translate(-50%,-100%) scale(${sc})"><b>${c.name}</b><span>${c.country}</span></div>`;
+    });
+    CAPTIONS.forEach((c, k) => {
+      const a = LEG0 + k * LEG + 0.25, o = fadeIn(t, a, 0.35) * (1 - fadeIn(t, a + LEG - 0.45, 0.3));
+      if (o > 0) html += `<div class="txt" style="top:${1700 + (1 - easeOut(fadeIn(t, a, 0.35))) * 14}px;font-size:46px;font-weight:700;color:#F5F5F4;opacity:${o}">` +
+                         `<span style="color:#F97316">✓</span> ${c}</div>`;
+    });
+    const hd = fadeIn(t, OVER + 0.5, 0.6) * (1 - fadeIn(t, PAGE - 0.1, 0.4));
+    if (hd > 0) html += `<div class="txt" style="top:${170 + (1 - easeOut(fadeIn(t, OVER + 0.5, 0.6))) * 18}px;font-size:76px;font-weight:800;line-height:1.1;color:#F5F5F4;opacity:${hd}">` +
+                        `Flights worldwide,<br>with a <span style="color:#F97316">real person</span><br>by your side.</div>`;
+    // pins lift off the globe and fly to their places on the passport page
+    if (t >= PAGE) CITIES.forEach((c, i) => {
+      const k = (t - PIN_AT(i)) / PIN_FLY, pin = globe.pins[i];
+      if (k < 0 || k > 1 || !pin) return;
+      const e = ease(k), x = lerp(pin.x, OLD[i][1], e), y = lerp(pin.y, OLD[i][2], e) - Math.sin(k * Math.PI) * 120;
+      svg += `<circle cx="${x}" cy="${y}" r="${12 + 10 * Math.sin(k * Math.PI)}" fill="#F97316" stroke="#FFFFFF" stroke-width="4"/>`;
+    });
+  }
+
+  // the card, the plane landing on it, the stamp
+  if (t >= CARD_IN) {
+    const s = cardState(t), a = easeOut((t - CARD_IN) / 0.45);
+    const bump = t >= HIT ? 1 - 0.025 * Math.sin(clamp((t - HIT) / 0.25) * Math.PI) : 1;
+    let onCard = "";
+    const lp = planePose(t, 0);
+    if (t >= LAND[0] && t < HIT) onCard += drawPlane(lp);
+    if (t >= HIT) onCard += `<g filter="url(#ink2)"><path transform="translate(${SPOT.x} ${SPOT.y}) scale(${SPOT.s})" d="${PLANE}" ` +
+                            `fill="${mix("#7C2D12", "#EA580C", fadeIn(t, UP, 0.6))}"/></g>`;
+    // a glint across the card once it is stamped
+    const gl = (t - UP - LIFT - 0.1) / 0.7;
+    const glint = gl > 0 && gl < 1 ? `<div style="position:absolute;left:${CARD_X}px;top:${CARD_Y}px;width:${CARD_W}px;height:${CARD_H}px;border-radius:${28.57 * K}px;overflow:hidden">` +
+      `<div style="position:absolute;top:-20%;height:140%;width:120px;left:${lerp(-200, CARD_W + 80, ease(gl))}px;transform:rotate(18deg);` +
+      `background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.22),rgba(255,255,255,0))"></div></div>` : "";
+    html += `<div style="position:absolute;inset:0;transform-origin:${SPOT.x}px ${SPOT.y}px;transform:scale(${bump})">` +
+            `<div style="position:absolute;inset:0;transform-origin:540px ${CARD_Y + CARD_H / 2}px;transform:scale(${0.88 + 0.12 * a})">` +
+            card(CARD_X, CARD_Y, CARD_W, s.a, s.b, s.p, a) + glint + `</div>` +
+            `<svg width="${W}" height="${H}" style="position:absolute;inset:0;overflow:visible">${onCard}${stamp(t)}</svg></div>`;
+    html += `<div class="txt" style="top:${CARD_Y - 74}px;font-size:26px;font-weight:600;letter-spacing:.5em;color:#8A7F70;` +
+            `opacity:${fadeIn(t, CARD_IN + 0.2) * (1 - fadeIn(t, flips[5].t - 0.2, 0.4))}">NOW BOARDING</div>`;
+    const e1 = fadeIn(t, UP + 0.7, 0.6), e2 = fadeIn(t, UP + 1.3, 0.6), e3 = fadeIn(t, UP + 1.7, 0.6);
+    html += `<div class="txt" style="top:${CARD_Y + CARD_H + 100 + (1 - ease(e1)) * 16}px;font-size:66px;font-weight:800;line-height:1.15;color:#1C1917;opacity:${e1}">` +
+            `Every journey starts<br>with a <span style="color:#EA580C">paper plane</span>.</div>`;
+    html += `<div class="txt" style="top:${CARD_Y + CARD_H + 290 + (1 - ease(e2)) * 12}px;font-size:36px;font-weight:600;color:#44403C;opacity:${e2}">` +
+            `fulkitravels.com · +39 0444 022494</div>`;
+    html += `<div class="txt" style="top:${CARD_Y + CARD_H + 350 + (1 - ease(e3)) * 12}px;font-size:28px;font-weight:500;letter-spacing:.04em;color:#78716C;opacity:${e3}">` +
+            `IATA-accredited agency · Arzignano (VI)</div>`;
+  }
+  $("overlay").innerHTML = `<svg width="${W}" height="${H}" style="position:absolute;inset:0;overflow:visible">${svg}</svg>` + html;
+  $("fade").style.opacity = Math.max(1 - fadeIn(t, 0, 0.4), fadeIn(t, DUR - 0.8, 0.8));
+}
+
+// clouds the camera rises through, in the sky band of the background
+{
+  const r = rng(12);
+  let s = "";
+  for (let i = 0; i < 14; i++) {
+    const x = r() * W, y = 2350 + r() * 1300, sc = 0.8 + r() * 1.4;
+    s += `<path transform="translate(${x} ${y}) scale(${sc})" fill="#FFFFFF" opacity="${0.35 + 0.4 * r()}" d="M-120 0a60 60 0 0 1 70 -48a80 80 0 0 1 140 -4a52 52 0 0 1 70 52Z"/>`;
+  }
+  $("sky").innerHTML = s;
+}
+
+window.DUR = DUR;
+window.EVENTS = EVENTS;
+window.render = render;
+render(Number(new URLSearchParams(location.search).get("t") || 2.2));
+</script>
+</body>
+</html>
