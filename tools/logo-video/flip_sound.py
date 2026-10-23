@@ -1,4 +1,5 @@
-"""Synthesise the soundtrack for the videos: split-flap clacks, plus a cabin chime, whooshes and pops for the routes promo.
+"""Synthesise the soundtrack for the videos: split-flap clacks, plus a cabin chime, whooshes and pops for the routes promo,
+and a sparkle and a rubber-stamp thump for the paper-plane promo.
 
 Run: python3 tools/logo-video/flip_sound.py events.json out.wav   (needs numpy)
 events.json is the EVENTS list from the page (each may set "gain" and "pan"), plus "duration".
@@ -65,6 +66,29 @@ def pop():
     return 0.3 * np.sin(2 * np.pi * np.cumsum(f) / RATE) * decay(n, 0.045) * np.minimum(1, t / 0.002)
 
 
+def sparkle():
+    """The paper turning into a plane: a quick run of high, glassy pings."""
+    n = int(RATE * 1.4)
+    t = np.arange(n) / RATE
+    out = np.zeros(n)
+    for k, f in enumerate((1568, 1976, 2349, 2637, 3136, 3951, 4699)):
+        i = int(k * 0.11 * RATE)
+        u = t[: n - i]
+        out[i:] += np.sin(2 * np.pi * f * u) * decay(n - i, 0.22) * np.minimum(1, u / 0.002) * (0.9 - 0.08 * k)
+    return 0.16 * out
+
+
+def stamp():
+    """A rubber stamp hitting the card: a deep thud under a short slap of paper."""
+    n = int(RATE * 0.5)
+    t = np.arange(n) / RATE
+    thud = np.sin(2 * np.pi * np.cumsum(70 + 60 * np.exp(-t / 0.03)) / RATE) * decay(n, 0.12)
+    slap = bandpass(rng.standard_normal(n), 300, 4000) * decay(n, 0.018)
+    out = 0.9 * thud + 0.5 * slap / np.abs(slap).max()
+    out[: int(RATE * 0.001)] *= np.linspace(0, 1, int(RATE * 0.001))
+    return out
+
+
 def main(src, dst):
     data = json.load(open(src))
     n = int(RATE * data["duration"])
@@ -77,8 +101,8 @@ def main(src, dst):
         mix[i:i + len(sig), 1] += sig * np.sqrt((1 + pan) / 2)
 
     for e in data["events"]:
-        if e["kind"] in ("chime", "whoosh", "pop"):
-            sig = {"chime": chime, "pop": pop}.get(e["kind"], lambda: whoosh(e["dur"]))()
+        if e["kind"] in ("chime", "whoosh", "pop", "sparkle", "stamp"):
+            sig = {"chime": chime, "pop": pop, "sparkle": sparkle, "stamp": stamp}.get(e["kind"], lambda: whoosh(e["dur"]))()
             add(sig, e["t"])
             continue
         gain, pan = e.get("gain", 1.0), e.get("pan", 0.0)

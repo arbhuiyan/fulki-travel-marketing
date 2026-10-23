@@ -1,0 +1,409 @@
+<!doctype html>
+<!-- Paper-plane promo (1080x1920): a paper plane flies over six cities from dawn in Venice to night in New York,
+     turning into the Fulki plane on the way. Then one flap card spells F U L K I and flips onto the logo, and the
+     plane comes down on it like a rubber stamp, taking its place beside FULKI. Rendered by build.mjs. -->
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="flap.css">
+<style>
+  #stage { height: 1920px; background: #0C0A09; }
+  #scene, #overlay { position: absolute; inset: 0; }
+  #night { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 42%, #1C1917 0%, #0C0A09 62%); }
+  .txt { position: absolute; left: 0; width: 100%; text-align: center; color: #F5F5F4; }
+  #fade { position: absolute; inset: 0; background: #0C0A09; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="scene" width="1080" height="1920">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop id="sky0" offset="0"/><stop id="sky1" offset="1"/></linearGradient>
+      <radialGradient id="glow"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="1080" height="1920" fill="url(#sky)"/>
+    <g id="stars" fill="#F5F5F4"></g>
+    <g id="sun"><circle id="sunGlow" r="300" fill="url(#glow)"/><circle id="sunDisc" r="90"/></g>
+    <g id="clouds" fill="#FFFFFF"></g>
+    <g id="sink">
+      <g id="far"></g>
+      <g id="near"></g>
+    </g>
+  </svg>
+  <div id="night"></div>
+  <div id="overlay"></div>
+  <div id="fade"></div>
+</div>
+<script src="flap.js"></script>
+<script>
+const W = 1080, H = 1920, GROUND = H, DUR = 21;
+const NS = "http://www.w3.org/2000/svg";
+const clamp = v => Math.max(0, Math.min(1, v));
+const ease = v => (v = clamp(v), v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2);
+const easeOut = v => 1 - Math.pow(1 - clamp(v), 3);
+const fadeIn = (t, a, d = 0.5) => clamp((t - a) / d);
+const lerp = (a, b, k) => a + (b - a) * k;
+function rng(seed) {   // mulberry32
+  return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let x = Math.imul(seed ^ seed >>> 15, 1 | seed);
+                 x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
+}
+const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+const mix = (a, b, k) => { const x = hex(a), y = hex(b); return `rgb(${x.map((v, i) => Math.round(lerp(v, y[i], k))).join(",")})`; };
+const R = (x, y, w, h) => `M${x} ${y}h${w}v${h}h${-w}Z`;
+
+// ---- the journey: one city every CITY_T seconds, morning to night ----
+// sky top/bottom, far and near skyline, sun (height, size, colour), cloud opacity, lit windows, stars
+const CITIES = [
+  { name: "VENEZIA", country: "Italy", sky: ["#93A9D8", "#FBD3BF"], far: "#D3AFB9", near: "#94718A", sun: [1180, 120, "#FFE2C6"], cloud: .75, lit: 0, stars: 0 },
+  { name: "PARIS", country: "France", sky: ["#5E9FDB", "#D5EAF6"], far: "#A9C4D8", near: "#5C7D99", sun: [700, 80, "#FFF8E7"], cloud: .9, lit: 0, stars: 0 },
+  { name: "DUBAI", country: "United Arab Emirates", sky: ["#E6AE62", "#FCEBCB"], far: "#DDB78C", near: "#A67B52", sun: [560, 95, "#FFF6DC"], cloud: .45, lit: 0, stars: 0 },
+  { name: "DHAKA", country: "Bangladesh", sky: ["#4E9C97", "#E4EED5"], far: "#9DBCA9", near: "#4A6C60", sun: [560, 55, "#FFF3D6"], cloud: .8, lit: 0, stars: 0 },
+  { name: "BANGKOK", country: "Thailand", sky: ["#6E4590", "#F99659"], far: "#B9697A", near: "#57304D", sun: [1260, 150, "#FFB46B"], cloud: .55, lit: .12, stars: .1 },
+  { name: "NEW YORK", country: "United States", sky: ["#0E1430", "#2C3159"], far: "#272B4C", near: "#13162D", sun: [640, 46, "#ECEAF2"], cloud: .12, lit: .38, stars: 1 },
+];
+const CITY_T = 1.8, V = 720, SEG = CITY_T * V;      // seconds per city, scroll speed, city width in px
+const LM = k => k * SEG + SEG / 2;                  // landmark of city k, in world x
+const worldX = t => V * t - 700;                    // world x at the left edge of the screen
+const centreT = k => (LM(k) + 700 - 600) / V;       // when city k's landmark passes x = 600
+const FLY_END = centreT(5) + 0.55, EXIT = 1.4;      // the plane climbs away after New York
+
+// ---- skylines: generic blocks per city plus its landmark, all in local coords with the ground at y = 0 ----
+const STYLES = [
+  { h: [90, 190], w: [50, 110], roof: "pitched" }, { h: [130, 220], w: [70, 130], roof: "mansard" },
+  { h: [220, 520], w: [50, 100], roof: "tower" }, { h: [140, 330], w: [50, 110], roof: "flat" },
+  { h: [130, 380], w: [50, 120], roof: "flat" }, { h: [240, 560], w: [60, 130], roof: "tower" },
+];
+function blocks(r, x0, x1, st, scale = 1, skip = []) {
+  let d = "", win = "";
+  const lit = CITIES[STYLES.indexOf(st)]?.lit ?? 0;
+  for (let x = x0; x < x1;) {
+    const w = lerp(st.w[0], st.w[1], r()), h = lerp(st.h[0], st.h[1], r()) * scale;
+    if (skip.some(([a, b]) => x + w > a && x < b)) { x += 14; continue; }
+    d += R(x, -h, w - 4, h);
+    if (st.roof === "pitched") d += `M${x - 4} ${-h}L${x + w / 2 - 2} ${-h - w * 0.35}L${x + w} ${-h}Z`;
+    if (st.roof === "mansard") d += `M${x} ${-h}L${x + 10} ${-h - 30}H${x + w - 14}L${x + w - 4} ${-h}Z` + R(x + w * 0.3, -h - 44, 10, 16);
+    if (st.roof === "tower" && r() < 0.5) d += R(x + w / 2 - 4, -h - 70, 6, 70);
+    if (st.roof === "tower" && r() < 0.3) d += `M${x} ${-h}L${x + w - 4} ${-h - 50}V${-h}Z`;
+    if (st.roof === "flat" && r() < 0.4) d += R(x + w * 0.2, -h - 18, w * 0.3, 18);
+    if (lit) for (let wy = -h + 20; wy < -20; wy += 26) for (let wx = x + 10; wx < x + w - 16; wx += 18)
+      if (r() < lit) win += R(wx, wy, 8, 12);
+    x += w + 6 * r();
+  }
+  return { d, win };
+}
+
+// landmarks: [{ d, rule?, fill? }] centred on x = 0
+const LANDMARKS = [
+  // Venice: St Mark's campanile and basilica, a gondola on the water
+  () => [{ d: R(-34, -330, 68, 330) + R(-38, -392, 76, 62) + R(-34, -422, 68, 30) + "M-38 -422L0 -540L38 -422Z" + R(-2, -566, 4, 26) +
+               R(-26, -382, 12, 36) + R(-6, -382, 12, 36) + R(14, -382, 12, 36), rule: "evenodd" },
+         { d: R(-420, -130, 300, 130) + [-380, -160].map(c => `M${c - 36} -130A36 36 0 0 1 ${c + 36} -130Z` + R(c - 3, -184, 6, 20)).join("") +
+              R(-312, -168, 84, 40) + "M-318 -168A48 48 0 0 1 -222 -168Z" + R(-273, -230, 6, 20) },
+         { d: "M90 -32Q190 -12 300 -32L314 -58Q300 -40 280 -38H120Q100 -40 86 -56Z" + R(250, -96, 8, 58) + "M254 -112a10 10 0 1 1 0.1 0Z" + "M262 -78L300 -20L296 -18L258 -76Z" }],
+  // Paris: the Eiffel Tower
+  () => [{ d: "M-165 0Q-72 -150 -42 -330L-18 -560L-9 -600L-3 -655H3L9 -600L18 -560L42 -330Q72 -150 165 0H112Q0 -175 -112 0Z" +
+              "M-34 -190L0 -315L34 -190Z", rule: "evenodd" },
+         { d: R(-118, -175, 236, 20) + R(-58, -345, 116, 14) + R(-24, -566, 48, 10) }],
+  // Dubai: Burj Khalifa and Burj Al Arab
+  () => [{ d: [[132, -150, 0], [112, -290, 6], [92, -410, -5], [72, -515, 4], [54, -605, -3], [38, -680, 2], [24, -735, 0]]
+              .map(([w, top, o]) => R(-w / 2 + o, top, w, -top)).join("") + "M-9 -735L0 -845L9 -735Z" },
+         { d: R(250, -420, 12, 420) + "M262 0V-372Q404 -300 424 0Z" + R(388, -250, 46, 7) }],
+  // Dhaka: Shaheed Minar against the red sun, and a mosque
+  () => [{ d: "M0 -360a118 118 0 1 1 0.1 0Z", fill: "#E5303F" },
+         { d: R(-290, -28, 580, 28) + R(-250, -48, 500, 20) +
+              R(-74, -344, 148, 296) + R(-58, -328, 116, 280) + [-30, -10, 10, 30].map(x => R(x - 2, -328, 4, 280)).join("") +
+              [-1, 1].map(s => R(s * 138 - 28, -278, 56, 230) + R(s * 138 - 18, -266, 36, 218) +
+                               R(s * 210 - 25, -226, 50, 178) + R(s * 210 - 15, -214, 30, 166)).join(""), rule: "evenodd" },
+         { d: R(340, -120, 170, 120) + "M352 -120Q352 -232 425 -252Q498 -232 498 -120Z" + R(422, -284, 6, 34) +
+              [312, 538].map(x => R(x - 11, -290, 22, 290) + `M${x - 15} -290L${x} -334L${x + 15} -290Z` + R(x - 16, -214, 32, 8)).join("") }],
+  // Bangkok: Wat Arun's prangs and a temple roof
+  () => {
+    const prang = (c, s) => R(c - 130 * s, -50 * s, 260 * s, 50 * s) + R(c - 108 * s, -110 * s, 216 * s, 60 * s) + R(c - 88 * s, -168 * s, 176 * s, 58 * s) +
+      `M${c - 74 * s} ${-168 * s}C${c - 80 * s} ${-300 * s} ${c - 40 * s} ${-420 * s} ${c - 10 * s} ${-470 * s}L${c - 3 * s} ${-545 * s}H${c + 3 * s}` +
+      `L${c + 10 * s} ${-470 * s}C${c + 40 * s} ${-420 * s} ${c + 80 * s} ${-300 * s} ${c + 74 * s} ${-168 * s}Z`;
+    return [{ d: prang(0, 1) + prang(-250, 0.55) + prang(250, 0.55) },
+            { d: R(360, -92, 150, 92) + "M326 -88L435 -196L544 -88Z" + "M372 -150L435 -236L498 -150Z" + R(432, -262, 6, 30) +
+                 "M326 -88l-16 -26l8 2Z" + "M544 -88l16 -26l-8 2Z" + "M372 -150l-14 -22l7 1Z" + "M498 -150l14 -22l-7 1Z" }];
+  },
+  // New York: the Empire State Building and the Statue of Liberty
+  () => [{ d: R(-120, -140, 240, 140) + R(-90, -372, 180, 236) + R(-65, -470, 130, 100) + R(-45, -522, 90, 54) + R(-28, -562, 56, 42) +
+              R(-14, -602, 28, 42) + R(-6, -662, 12, 62) + R(-1.5, -722, 3, 62) },
+         { d: R(-500, -30, 150, 30) + "M-472 -30L-462 -128H-388L-378 -30Z" + "M-446 -128L-433 -246H-407L-394 -128Z" +
+              "M-420 -274a12 12 0 1 1 0.1 0Z" + "M-436 -268l-8 -14l12 6Z" + "M-420 -274l0 -16l4 14Z" + "M-404 -268l8 -14l-12 6Z" +
+              "M-409 -244L-398 -332H-390L-400 -240Z" + R(-400, -348, 12, 16) + "M-400 -348Q-394 -372 -388 -348Z" + R(-452, -222, 12, 28) }],
+];
+const SKIP = [[[-440, 60], [80, 320]], [[-175, 175]], [[-80, 440]], [[-300, 560]], [[-300, 560]], [[-510, -340], [-130, 130]]];
+
+const near = document.getElementById("near"), far = document.getElementById("far");
+const svgEl = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+{
+  const r = rng(7);
+  let farD = "";
+  // far layer scrolls at 0.55x; city k's stretch is centred on 0.55 * SEG * k
+  for (let k = -1; k <= 7; k++) {
+    const st = STYLES[Math.max(0, Math.min(5, k))], c = 0.55 * SEG * k;
+    farD += blocks(r, c - 0.275 * SEG, c + 0.275 * SEG, st, 1.25).d;
+  }
+  far.appendChild(svgEl("path", { d: farD }));
+  for (let k = -1; k <= 6; k++) {
+    const kk = Math.max(0, Math.min(5, k)), g = svgEl("g", { transform: `translate(${LM(k)} 0)` });
+    const b = blocks(r, -SEG / 2, SEG / 2, STYLES[kk], 1, k === kk ? SKIP[kk] : []);
+    g.appendChild(svgEl("path", { d: b.d }));
+    if (k === kk) {
+      if (k === 0) g.appendChild(svgEl("rect", { x: -SEG / 2, y: -44, width: SEG, height: 44, fill: "#C9B5C8", opacity: .55 }));
+      for (const p of LANDMARKS[k]()) g.appendChild(svgEl("path", { d: p.d, "fill-rule": p.rule || "nonzero", ...(p.fill ? { fill: p.fill } : {}) }));
+    }
+    if (b.win) g.appendChild(svgEl("path", { d: b.win, fill: "#FCD34D" }));
+    near.appendChild(g);
+  }
+  const stars = document.getElementById("stars");
+  for (let i = 0; i < 90; i++) stars.appendChild(svgEl("circle", { cx: r() * W, cy: r() * 1150, r: 1 + r() * 2.2, opacity: 0.4 + 0.6 * r() }));
+  const clouds = document.getElementById("clouds");
+  for (let i = 0; i < 16; i++) {
+    const x = i * 420 + r() * 200, y = 520 + r() * 520, s = 0.6 + r() * 0.8;
+    clouds.appendChild(svgEl("path", { "data-x": x, transform: `translate(${x} ${y}) scale(${s})`, opacity: 0.5 + 0.5 * r(),
+      d: "M-120 0a60 60 0 0 1 70 -48a80 80 0 0 1 140 -4a52 52 0 0 1 70 52Z" }));
+  }
+}
+
+// palette at time t: cities blend as the plane crosses from one to the next
+function palette(t) {
+  const u = Math.max(0, Math.min(5, (t - centreT(0)) / CITY_T)), k = Math.min(4, Math.floor(u)), f = ease((u - k - 0.25) / 0.5);
+  const a = CITIES[k], b = CITIES[k + 1];
+  return { sky: [mix(a.sky[0], b.sky[0], f), mix(a.sky[1], b.sky[1], f)], far: mix(a.far, b.far, f), near: mix(a.near, b.near, f),
+           sunY: lerp(a.sun[0], b.sun[0], f), sunR: lerp(a.sun[1], b.sun[1], f), sunC: mix(a.sun[2], b.sun[2], f),
+           cloud: lerp(a.cloud, b.cloud, f), stars: lerp(a.stars, b.stars, f) };
+}
+
+// ---- the plane ----
+const PAPER = { pts: [[62, 0], [-42, -40], [-30, 0], [-42, 40]] };   // top view of a paper dart, nose first
+const BRAND_KEYS = [[50, 0], [-11, -43], [-44.6, 0], [-11, 43]];      // nose, wingtip, tail, wingtip on PLANE
+const N = 60;                                                         // points per side for the morph
+function resample(poly, n) {   // n evenly spaced points along an open polyline
+  const len = [0];
+  for (let i = 1; i < poly.length; i++) len.push(len[i - 1] + Math.hypot(poly[i][0] - poly[i - 1][0], poly[i][1] - poly[i - 1][1]));
+  const out = [];
+  for (let j = 0, i = 1; j < n; j++) {
+    const L = len.at(-1) * j / n;
+    while (len[i] < L) i++;
+    const k = (L - len[i - 1]) / (len[i] - len[i - 1] || 1);
+    out.push([lerp(poly[i - 1][0], poly[i][0], k), lerp(poly[i - 1][1], poly[i][1], k)]);
+  }
+  return out;
+}
+const MORPH = (() => {
+  const el = svgEl("path", { d: PLANE });
+  document.getElementById("scene").appendChild(el);
+  const total = el.getTotalLength(), dense = [];
+  for (let i = 0; i <= 3000; i++) { const p = el.getPointAtLength(total * i / 3000); dense.push([p.x, p.y]); }
+  el.remove();
+  const idx = BRAND_KEYS.map(([x, y]) => dense.reduce((best, p, i) => Math.hypot(p[0] - x, p[1] - y) < Math.hypot(dense[best][0] - x, dense[best][1] - y) ? i : best, 0));
+  idx[0] = 0; idx.push(3000);
+  const brand = [], paper = [], pp = [...PAPER.pts, PAPER.pts[0]];
+  for (let s = 0; s < 4; s++) {
+    brand.push(...resample(dense.slice(idx[s], idx[s + 1] + 1), N));
+    paper.push(...resample([pp[s], pp[s + 1]], N));
+  }
+  return { brand, paper };
+})();
+const MORPH_AT = centreT(2) - 0.55, MORPH_T = 1.2;   // over Dubai
+
+function planeShape(m, roll) {
+  const pts = MORPH.paper.map((p, i) => [lerp(p[0], MORPH.brand[i][0], m), lerp(p[1], MORPH.brand[i][1], m) * roll]);
+  const d = "M" + pts.map(p => p.map(v => v.toFixed(2)).join(" ")).join("L") + "Z";
+  let g = `<path d="${d}" fill="${mix("#FFFFFF", "#EA580C", ease(m * 1.4))}"/>`;
+  if (m < 1) {   // the folds of the paper: a shaded lower wing and the centre crease
+    const [n, a, c, b] = PAPER.pts.map(([x, y]) => [x, y * roll]);
+    g += `<g opacity="${1 - clamp(m * 1.6)}"><path d="M${n}L${c}L${b}Z" fill="${roll > 0 ? "#D9D5D1" : "#F1EFED"}"/>` +
+         `<path d="M${n}L${c}" stroke="#BDB7B1" stroke-width="1.6"/><path d="M${n}L${a}L${c}Z" fill="#FFFFFF" opacity="${roll > 0 ? 0 : .6}"/></g>`;
+  }
+  return g;
+}
+
+// where the plane is on screen at time t (world speed V carries it forward, so it only drifts on screen)
+function planeAt(t) {
+  let x = lerp(-260, 400, easeOut(t / 1.4)), y = 960 + 46 * Math.sin(1.7 * t);
+  const e = clamp((t - FLY_END) / EXIT);
+  x += 520 * e * e; y -= 1350 * e * e * e;
+  return [x, y];
+}
+function planePose(t) {
+  const [x, y] = planeAt(t), [x2, y2] = planeAt(t + 1 / 120);
+  return { x, y, angle: Math.atan2((y2 - y) * 120, (x2 - x) * 120 + V) * 180 / Math.PI };
+}
+const morphAt = t => clamp((t - MORPH_AT) / MORPH_T);
+
+function trail(t) {
+  // points the plane's tail passed through, carried left by the scroll since
+  const m = ease(morphAt(t)), pts = [];
+  for (let tau = 0; tau <= 1.3; tau += 0.025) {
+    const tt = t - tau;
+    if (tt < 0) break;
+    const p = planePose(tt), a = p.angle * Math.PI / 180, tail = lerp(-34, -44, ease(morphAt(tt))) * 1.9;
+    pts.push([p.x + Math.cos(a) * tail - V * tau, p.y + Math.sin(a) * tail]);
+  }
+  let s = "";
+  for (let i = 1; i < pts.length; i++) {
+    const op = (1 - i / pts.length);
+    s += `<line x1="${pts[i - 1][0]}" y1="${pts[i - 1][1]}" x2="${pts[i][0]}" y2="${pts[i][1]}" stroke="#FFFFFF" stroke-linecap="round" ` +
+         `stroke-width="${lerp(4, 9, m) * (1 - 0.5 * i / pts.length)}" opacity="${op * lerp(i % 2 ? 0.9 : 0, 0.7, m)}"/>`;
+  }
+  return s;
+}
+
+function sparkles(t) {
+  if (t < MORPH_AT || t > MORPH_AT + MORPH_T + 1) return "";
+  const r = rng(3);
+  let s = "";
+  for (let i = 0; i < 26; i++) {
+    const born = MORPH_AT + r() * MORPH_T, life = 0.5 + r() * 0.4, k = (t - born) / life;
+    const ox = (r() - 0.5) * 220, oy = (r() - 0.5) * 160, size = 8 + r() * 14, c = r() < 0.5 ? "#FFFFFF" : "#FDBA74";
+    if (k < 0 || k > 1) continue;
+    const p = planePose(born), x = p.x + ox - V * (t - born) * 0.6, y = p.y + oy, z = size * Math.sin(k * Math.PI);
+    s += `<path transform="translate(${x} ${y}) rotate(${k * 90})" fill="${c}" d="M0 ${-z}Q${z * .15} ${-z * .15} ${z} 0Q${z * .15} ${z * .15} 0 ${z}Q${-z * .15} ${z * .15} ${-z} 0Q${-z * .15} ${-z * .15} 0 ${-z}Z"/>`;
+  }
+  return s;
+}
+
+// ---- departures board along the top: NOW FLYING OVER <city> ----
+const CELLS = 8, CW = 92, CGAP = 8, BOARD_X = (W - (CELLS * CW + (CELLS - 1) * CGAP)) / 2, BOARD_Y = 214;
+const pad = s => { const l = Math.floor((CELLS - s.length) / 2); return (" ".repeat(l) + s).padEnd(CELLS).split(""); };
+const boardFlips = [];   // per cell: [{ t, from, to }]
+for (let i = 0; i < CELLS; i++) boardFlips.push([]);
+CITIES.forEach((c, k) => {
+  const at = k === 0 ? 0.35 : centreT(k) - 0.9, prev = k ? pad(CITIES[k - 1].name) : pad("");
+  pad(c.name).forEach((ch, i) => { if (ch !== prev[i]) boardFlips[i].push({ t: at + i * 0.045, from: prev[i], to: ch }); });
+});
+const BFLIP = 0.15;
+function cellState(i, t) {
+  let rest = " ";
+  for (const f of boardFlips[i]) {
+    if (t < f.t) break;
+    if (t < f.t + BFLIP) return [f.from, f.to, (t - f.t) / BFLIP];
+    rest = f.to;
+  }
+  return [rest, null, null];
+}
+
+// ---- the end: one card spells FULKI, flips onto the logo, the plane stamps itself on ----
+const CARD_W = 560, CARD_H = CARD_W * FH / FW, CARD_X = (W - CARD_W) / 2, CARD_Y = 470, K = CARD_W / FW;
+const CARD_IN = FLY_END + EXIT + 0.1, START = CARD_IN + 0.5, HOLD = 0.5, FLIP = 0.17;
+const flips = [];
+let cur = " ";
+["F", "U", "L", "K", "I"].forEach((ch, k) => { flips.push({ t: START + k * HOLD, from: cur, to: ch, dur: FLIP }); cur = ch; });
+const LOGO = { ch: "LOGO", plane: false }, LOGO_AT = START + 5 * HOLD + 0.2, LOGO_FLIP = 0.42;
+flips.push({ t: LOGO_AT, from: cur, to: LOGO, dur: LOGO_FLIP });
+function cardState(t) {
+  let rest = " ";
+  for (const f of flips) {
+    if (t < f.t) break;
+    if (t < f.t + f.dur) return { a: f.from, b: f.to, p: (t - f.t) / f.dur };
+    rest = f.to;
+  }
+  return { a: rest, b: null, p: null };
+}
+const STAMP_AT = LOGO_AT + LOGO_FLIP + 0.3, HOVER = 0.32, SLAM = 0.26, HIT = STAMP_AT + HOVER + SLAM;
+const SPOT = { x: CARD_X + LOGO_PLANE.x * K, y: CARD_Y + LOGO_PLANE.y * K, s: LOGO_PLANE.s * K };
+
+function stamp(t) {
+  if (t < STAMP_AT) return "";
+  const h = clamp((t - STAMP_AT) / HOVER), k = clamp((t - STAMP_AT - HOVER) / SLAM), slam = k * k * k;
+  // hovers big over the card, lifts a little, then comes straight down
+  const big = 6.2 + 0.5 * easeOut(h), s = lerp(big, SPOT.s, slam), rot = lerp(-16, 0, Math.max(easeOut(h) * 0.3, slam));
+  const x = lerp(SPOT.x - 150, SPOT.x, Math.max(easeOut(h) * 0.4, slam)), y = lerp(SPOT.y - 330, SPOT.y, Math.max(easeOut(h) * 0.25, slam));
+  const lift = 1 - slam, sh = `translate(${x + 70 * lift} ${y + 110 * lift}) rotate(${rot}) scale(${s})`;
+  let g = "";
+  if (k < 1) g += `<path transform="${sh}" d="${PLANE}" fill="#000" opacity="${0.45 * fadeIn(t, STAMP_AT, 0.2) * (0.4 + 0.6 * slam)}" style="filter:blur(${24 * lift}px)"/>`;
+  g += `<path transform="translate(${x} ${y}) rotate(${rot}) scale(${s})" d="${PLANE}" fill="${t < HIT ? "#F97316" : mix("#9A3412", "#EA580C", fadeIn(t, HIT, 0.35))}" ` +
+       `opacity="${fadeIn(t, STAMP_AT, 0.15)}"/>`;
+  // the ink hitting the card
+  if (t >= HIT && t < HIT + 0.8) {
+    const w = (t - HIT) / 0.6, r = rng(5);
+    if (w < 1) g += `<circle cx="${SPOT.x}" cy="${SPOT.y}" r="${40 + 240 * easeOut(w)}" fill="none" stroke="#F97316" stroke-width="${8 * (1 - w)}" opacity="${0.8 * (1 - w)}"/>`;
+    for (let i = 0; i < 14; i++) {
+      const a = r() * 2 * Math.PI, d = 60 + 120 * r(), q = clamp((t - HIT) / (0.45 + 0.3 * r()));
+      g += `<circle cx="${SPOT.x + Math.cos(a) * d * easeOut(q)}" cy="${SPOT.y + Math.sin(a) * d * easeOut(q)}" r="${(4 + 6 * r()) * (1 - q)}" fill="#EA580C"/>`;
+    }
+  }
+  return g;
+}
+
+// ---- sound ----
+const EVENTS = [{ t: 0.1, kind: "whoosh", dur: 1.6 }];
+boardFlips.forEach((fs, i) => fs.forEach(f => EVENTS.push({ t: f.t + BFLIP, kind: "small", gain: 0.4, pan: (i - 3.5) / 5 })));
+EVENTS.push({ t: MORPH_AT, kind: "sparkle" }, { t: MORPH_AT + MORPH_T - 0.1, kind: "whoosh", dur: 1.6 },
+            { t: FLY_END - 0.1, kind: "whoosh", dur: EXIT + 0.3 }, { t: CARD_IN + 0.3, kind: "small", gain: 0.6 });
+flips.forEach(f => EVENTS.push({ t: f.t + f.dur, kind: f.dur > 0.2 ? "big" : "small" }));
+EVENTS.push({ t: STAMP_AT + HOVER - 0.05, kind: "whoosh", dur: SLAM + 0.1 }, { t: HIT, kind: "stamp" }, { t: HIT + 0.35, kind: "chime" });
+
+// ---- frame ----
+const $ = id => document.getElementById(id);
+const clouds = [...$("clouds").children];
+function render(t) {
+  const pal = palette(t), wx = worldX(t), out = ease((t - FLY_END - 0.2) / (EXIT + 0.1));
+  $("sky0").setAttribute("stop-color", pal.sky[0]); $("sky1").setAttribute("stop-color", pal.sky[1]);
+  $("sun").setAttribute("transform", `translate(${790 - 0.04 * wx} ${pal.sunY})`);
+  $("sunDisc").setAttribute("r", pal.sunR); $("sunDisc").setAttribute("fill", pal.sunC);
+  $("stars").setAttribute("opacity", pal.stars);
+  $("clouds").setAttribute("opacity", pal.cloud);
+  for (const c of clouds) {
+    const x = ((+c.dataset.x - 0.3 * wx) % 6720 + 6720) % 6720 - 300;
+    c.setAttribute("transform", c.getAttribute("transform").replace(/translate\([^ ]+/, `translate(${x}`));
+  }
+  far.setAttribute("transform", `translate(${600 - 0.55 * (V * t - V * centreT(0))} ${GROUND})`);
+  far.setAttribute("fill", pal.far);
+  near.setAttribute("transform", `translate(${-wx} ${GROUND})`);
+  near.setAttribute("fill", pal.near);
+  $("sink").setAttribute("transform", `translate(0 ${900 * out * out})`);
+  $("night").style.opacity = out;
+
+  let svg = "", html = "";
+  // the plane, folding itself into the Fulki plane over Dubai
+  if (t < FLY_END + EXIT) {
+    const p = planePose(t), m = morphAt(t), roll = Math.cos(2 * Math.PI * ease(m));
+    svg += trail(t) + sparkles(t);
+    svg += `<g transform="translate(${p.x} ${p.y}) rotate(${p.angle}) scale(1.9)" style="filter:drop-shadow(0 10px 8px rgba(0,0,0,.18))">${planeShape(ease(m), roll)}</g>`;
+  }
+  // board
+  const bo = fadeIn(t, 0.15, 0.4) * (1 - out);
+  if (bo > 0) {
+    html += `<div style="position:absolute;left:${BOARD_X - 34}px;top:${BOARD_Y - 92}px;width:${CELLS * CW + (CELLS - 1) * CGAP + 68}px;height:292px;` +
+            `border-radius:30px;background:rgba(12,10,9,.86);opacity:${bo};transform:translateY(${-160 * out}px)"></div>`;
+    html += `<div class="txt" style="top:${BOARD_Y - 66}px;font-size:26px;font-weight:600;letter-spacing:.45em;color:#A8A29E;opacity:${bo};transform:translateY(${-160 * out}px)">NOW FLYING OVER</div>`;
+    let cells = "";
+    for (let i = 0; i < CELLS; i++) {
+      const [a, b, p] = cellState(i, t);
+      cells += card(BOARD_X + i * (CW + CGAP), BOARD_Y, CW, { ch: a, white: true }, b === null ? null : { ch: b, white: true }, p);
+    }
+    html += `<div style="position:absolute;inset:0;opacity:${bo};transform:translateY(${-160 * out}px)">${cells}</div>`;
+    const u = (t - centreT(0) + 0.9) / CITY_T, k = Math.max(0, Math.min(5, Math.floor(u)));
+    const co = clamp((t - (k ? centreT(k) - 0.9 : 0.35) - 0.3) / 0.3) * bo;
+    html += `<div class="txt" style="top:${BOARD_Y + 128}px;font-size:28px;font-weight:500;color:#D6D3D1;opacity:${co};transform:translateY(${-160 * out}px)">${CITIES[k].country}</div>`;
+  }
+  // the card
+  if (t >= CARD_IN) {
+    const s = cardState(t), a = easeOut((t - CARD_IN) / 0.45);
+    const bump = t >= HIT ? 1 - 0.035 * Math.sin(clamp((t - HIT) / 0.3) * Math.PI) : 1;
+    html += `<div style="position:absolute;inset:0;transform-origin:${SPOT.x}px ${SPOT.y}px;transform:scale(${bump})">` +
+            `<div style="position:absolute;inset:0;transform-origin:540px ${CARD_Y + CARD_H / 2}px;transform:scale(${0.88 + 0.12 * a})">` +
+            card(CARD_X, CARD_Y, CARD_W, s.a, s.b, s.p, a) + `</div>` +
+            `<svg width="${W}" height="${H}" style="position:absolute;inset:0;overflow:visible">${stamp(t)}</svg></div>`;
+    html += `<div class="txt" style="top:${CARD_Y - 74}px;font-size:26px;font-weight:600;letter-spacing:.5em;color:#78716C;` +
+            `opacity:${fadeIn(t, CARD_IN + 0.2) * (1 - fadeIn(t, LOGO_AT - 0.2, 0.4))}">NOW BOARDING</div>`;
+    const e1 = fadeIn(t, HIT + 0.6, 0.6), e2 = fadeIn(t, HIT + 1.2, 0.6);
+    html += `<div class="txt" style="top:${CARD_Y + CARD_H + 110 + (1 - ease(e1)) * 16}px;font-size:66px;font-weight:700;line-height:1.15;opacity:${e1}">` +
+            `Every journey starts<br>with a <span style="color:#F97316">paper plane</span>.</div>`;
+    html += `<div class="txt" style="top:${CARD_Y + CARD_H + 310 + (1 - ease(e2)) * 12}px;font-size:34px;font-weight:500;line-height:1.5;color:#A8A29E;opacity:${e2}">` +
+            `fulkitravels.com<br>+39 0444 022494</div>`;
+  }
+  $("overlay").innerHTML = `<svg width="${W}" height="${H}" style="position:absolute;inset:0">${svg}</svg>` + html;
+  $("fade").style.opacity = Math.max(1 - fadeIn(t, 0, 0.35), fadeIn(t, DUR - 0.6, 0.6));
+}
+
+window.DUR = DUR;
+window.EVENTS = EVENTS;
+window.render = render;
+render(Number(new URLSearchParams(location.search).get("t") || 3));
+</script>
+</body>
+</html>

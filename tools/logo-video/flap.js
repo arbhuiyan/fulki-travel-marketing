@@ -4,6 +4,7 @@ const FW = 317.44, FH = 389.12, RX = 28.57, SPLIT = FH * 0.012;
 const TOP = ["#2A2725", "#F97316"], BOT = ["#232120", "#EA580C"];        // card, orange glyph
 const WTOP = ["#2A2725", "#F5F5F4"], WBOT = ["#232120", "#D6D3D1"];      // card, white glyph
 const PLANE = "M50 0C50 -3.6 46.5 -5.6 41 -5.6H15L-4 -40.5C-5 -42.3 -6.6 -43 -8.6 -43H-13.4C-15 -43 -15.9 -41.8 -15.4 -40.3L-6.4 -5.6H-31L-39.6 -17.4C-40.4 -18.5 -41.4 -19 -42.8 -19H-46.4C-47.7 -19 -48.4 -18 -48 -16.8L-44.2 -4.2C-44.6 -2.8 -44.6 2.8 -44.2 4.2L-48 16.8C-48.4 18 -47.7 19 -46.4 19H-42.8C-41.4 19 -40.4 18.5 -39.6 17.4L-31 5.6H-6.4L-15.4 40.3C-15.9 41.8 -15 43 -13.4 43H-8.6C-6.6 43 -5 42.3 -4 40.5L15 5.6H41C46.5 5.6 50 3.6 50 0Z";
+const LOGO_PLANE = { x: 259.9, y: 313.13, s: 0.4518 };                   // where the plane sits on the logo face
 const FULKI = "M4.11 0V-43.03H13.71V0ZM11.46 -16.85V-25.11H32.97V-16.85ZM11.46 -34.77V-43.03H33.95V-34.77ZM61.08 0.67Q55.79 0.67 51.74 -1.6Q47.68 -3.87 45.39 -7.85Q43.09 -11.83 43.09 -16.91V-43.03H52.69V-16.4Q52.69 -13.81 53.8 -11.93Q54.91 -10.05 56.82 -9.05Q58.73 -8.05 61.08 -8.05Q63.48 -8.05 65.32 -9.05Q67.16 -10.05 68.23 -11.91Q69.3 -13.77 69.3 -16.33V-43.03H78.93V-16.85Q78.93 -11.77 76.66 -7.82Q74.39 -3.87 70.38 -1.6Q66.37 0.67 61.08 0.67ZM90.17 0V-43.03H99.77V0ZM97.55 0V-8.38H118.85V0ZM154.08 0 136.62 -22.43 153.5 -43.03H165.32L146.31 -20.66V-24.53L165.96 0ZM128.02 0V-43.03H137.62V0ZM173.55 0V-43.03H183.15V0Z";
 
 // The F from flap_f() in build_logos.py: centred (no signature) and raised (with FULKI + plane under it)
@@ -17,7 +18,7 @@ function fRects(sig) {
 }
 
 // One face of a card: " ", a character, "^" (plane), "F" (logo F) or "LOGO" (F with FULKI + plane under it).
-// Faces are orange; pass { ch, white: true } for a white character.
+// Faces are orange; pass { ch, white: true } for a white character, { ch: "LOGO", plane: false } for the logo with no plane.
 function face(f, bottom) {
   const ch = f.ch ?? f;
   const [card, glyph] = f.white ? (bottom ? WBOT : WTOP) : (bottom ? BOT : TOP);
@@ -25,7 +26,7 @@ function face(f, bottom) {
   if (ch === "LOGO") {
     g = `<g fill="${glyph}">${fRects(true)}</g>` +
         `<path fill="${BOT[1]}" transform="translate(34.95 334.64)" d="${FULKI}"/>` +
-        `<path fill="${BOT[1]}" transform="translate(259.9 313.13) scale(0.4518)" d="${PLANE}"/>`;
+        (f.plane === false ? "" : `<path fill="${BOT[1]}" transform="translate(${LOGO_PLANE.x} ${LOGO_PLANE.y}) scale(${LOGO_PLANE.s})" d="${PLANE}"/>`);
   } else if (ch === "F" && !f.white) {
     g = `<g fill="${glyph}">${fRects(false)}</g>`;
   } else if (ch === "^") {
