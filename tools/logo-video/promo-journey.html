@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Journey promo (1080x1920, 29.5 s, 100 bpm): a Fulki boarding pass to ANYWHERE folds itself into a paper plane and
+<!-- Journey promo (1080x1920, 29.5 s): a Fulki boarding pass to ANYWHERE folds itself into a paper plane and
      takes off; the camera rises with it into space, where it flies Venezia → Dakar → Accra → Dubai → Dhaka → Bangkok
      round a dotted globe, turning into the Fulki plane over Africa. The city pins become stamps on a passport page,
      the flap card spells F U L K I, and the plane lands in its place on the logo and is stamped in.
@@ -56,7 +56,7 @@ function rng(seed) {   // mulberry32
 }
 const $ = id => document.getElementById(id);
 
-// ================= timeline (beats at 100 bpm land the folds, flips, pins and the stamp on the music) =================
+// ================= timeline (in 0.6 s beats: the folds, flips, pins and the stamp keep an even rhythm) =================
 const TURN = [1.2, 1.8];                               // the pass turns upright
 const FOLD1 = [1.95, 2.4], FOLD2 = [2.55, 3.0], FOLD3 = [3.15, 3.6];
 const POSE = [3.6, 4.2], SWAP = [4.2, 4.32];           // turns to point the way, then opens its wings
@@ -405,14 +405,14 @@ function stamp(t) {
 }
 
 // ================= sound =================
-const EVENTS = [{ kind: "music", t: 0, bpm: 100, intro: [0, LEG0], groove: [LEG0, PAGE], break: [PAGE, HIT], outro: [HIT, DUR + 1],
-                  risers: [[4.2, LEG0], [HIT - 1.2, HIT]], hit: HIT }];
+const EVENTS = [{ kind: "ambience", t: 0, room: [[-1, LAUNCH[0] + 0.6], [PAGE - 0.3, DUR + 1]], birds: [[0.2, LAUNCH[0] + 0.4], [PAGE + 0.4, DUR + 1]],
+                  wind: [[LAUNCH[0] - 0.2, PAGE + 0.2]], gusts: [[LAUNCH[0], LAUNCH[1] - 0.3], [OVER - 0.2, OVER + 0.9]], waves: [[LEG0, OVER + 1.5]] }];
 EVENTS.push({ t: 0.3, kind: "fold", gain: 0.35 }, { t: TURN[1] - 0.05, kind: "fold", gain: 0.4 });
 for (const [a, g] of [[FOLD1[1], 0.8], [FOLD1[1] + 0.05, 0.6], [FOLD2[1], 0.8], [FOLD2[1] + 0.05, 0.6], [FOLD3[1], 1]]) EVENTS.push({ t: a, kind: "fold", gain: g });
 EVENTS.push({ t: SWAP[0] - 0.05, kind: "whoosh", dur: 0.5 }, { t: LAUNCH[0] + 0.1, kind: "whoosh", dur: 1.7 });
 boardFlips.forEach((fs, i) => fs.forEach(f => EVENTS.push({ t: f.t + BFLIP, kind: "small", gain: 0.3, pan: (i - 3.5) / 5 })));
 for (let i = 1; i <= 5; i++) EVENTS.push({ t: arrive(i), kind: "pop", gain: 0.8 });
-EVENTS.push({ t: LEG0 - 0.2, kind: "pop", gain: 0.6 }, { t: MORPH_AT, kind: "sparkle" }, { t: OVER, kind: "whoosh", dur: 1.1 });
+EVENTS.push({ t: LEG0 - 0.2, kind: "pop", gain: 0.6 }, { t: MORPH_AT, kind: "flutter" }, { t: OVER, kind: "whoosh", dur: 1.1 });
 OLD.forEach((o, i) => EVENTS.push({ t: PIN_AT(i) + PIN_FLY, kind: "stamp", gain: 0.32, pan: (o[1] - 540) / 700 }));
 EVENTS.push({ t: CARD_IN + 0.2, kind: "small", gain: 0.6 });
 flips.forEach(f => EVENTS.push({ t: f.t + f.dur, kind: f.dur > 0.2 ? "big" : "small" }));

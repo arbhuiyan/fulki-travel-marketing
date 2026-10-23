@@ -27,7 +27,7 @@ vertical promo, a departures board of destinations from Italy and how to book). 
 `assets/video/fulki-promo-paper-plane.mp4` (`promo-paper-plane.html`), follows a paper plane over Venice, Dakar, Accra,
 Dubai, Dhaka and Bangkok, from dawn to dusk, folding into the Fulki plane on the way; then on a passport page stamped
 with those cities the flap card spells F U L K I, flips onto the logo, and a rubber stamp inks the plane in beside FULKI.
-`assets/video/fulki-promo-journey.mp4` (`promo-journey.html`) tells the whole story to its own score: a boarding pass
+`assets/video/fulki-promo-journey.mp4` (`promo-journey.html`) tells the whole story over natural sound (birds, wind, the sea): a boarding pass
 to ANYWHERE folds itself into a paper plane, which flies round a dotted globe and becomes the Fulki plane, then lands
 on the logo on the passport page and is stamped in (the paper plane and passport page are shared in `paperplane.js`
 and `passport.js`). Re-render them with `node tools/logo-video/build.mjs [logo|promo|routes|paper|journey]` (needs Playwright, ffmpeg and numpy; the sounds are synthesised

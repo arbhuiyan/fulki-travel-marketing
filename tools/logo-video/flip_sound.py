@@ -1,5 +1,6 @@
 """Synthesise the soundtrack for the videos: split-flap clacks, plus a cabin chime, whooshes and pops for the routes promo,
-a sparkle and a rubber-stamp thump for the paper-plane promo, and paper folds and a music bed for the journey promo.
+a sparkle and a rubber-stamp thump for the paper-plane promo, and paper folds, a paper flutter and natural ambience
+(room, birds, wind, sea) for the journey promo.
 
 Run: python3 tools/logo-video/flip_sound.py events.json out.wav   (needs numpy)
 events.json is the EVENTS list from the page (each may set "gain" and "pan"), plus "duration".
@@ -100,136 +101,77 @@ def fold():
     return out
 
 
-def note(m):
-    return 440 * 2 ** ((m - 69) / 12)
+def flutter():
+    """A paper plane catching the air: fast flapping of paper over a soft gust."""
+    n = int(RATE * 0.9)
+    t = np.arange(n) / RATE
+    flap = 0.5 + 0.5 * np.sin(2 * np.pi * (28 - 10 * t) * t)
+    out = bandpass(rng.standard_normal(n), 900, 6000) * flap ** 3 * np.sin(np.pi * t / t[-1]) ** 0.7
+    return 0.35 * out / np.abs(out).max() + 0.6 * whoosh(0.9)
 
 
-# D major, a bar each: D, A, Bm, G (bass note first)
-CHORDS = [[38, 57, 62, 66, 69], [33, 57, 61, 64, 69], [35, 59, 62, 66, 71], [31, 59, 62, 67, 71]]
-
-
-def music(e, n):
-    """A warm, hopeful bed in D major: pad and plucks to begin, a soft beat and bass for the flight, plucks and pad
-    while the card flips, then one big chord when the stamp comes down. e: bpm, intro/groove/break/outro [start, end],
-    risers [[start, end], ...] and hit (seconds)."""
-    beat = 60 / e["bpm"]
-    bar = 4 * beat
+def ambience(e, n):
+    """Natural sound under the whole film, each layer fading in and out over [start, end] spans: "room" (a quiet
+    room), "birds" (birdsong outside a window), "wind" (air rushing past, with gusts) and "waves" (a distant sea)."""
+    r = np.random.default_rng(5)
+    t = np.arange(n) / RATE
     out = np.zeros((n, 2))
-    T = np.arange(n) / RATE
-    hit = e["hit"]
 
-    def put(sig, t, pan=0.0, g=1.0):
-        i = int(t * RATE)
-        if i >= n:
-            return
-        sig = sig[: n - i] * g
-        out[i:i + len(sig), 0] += sig * np.sqrt((1 - pan) / 2)
-        out[i:i + len(sig), 1] += sig * np.sqrt((1 + pan) / 2)
+    def spans(name, fade=0.8):
+        env = np.zeros(n)
+        for a, b in e.get(name, []):
+            env = np.maximum(env, np.clip((t - a) / fade, 0, 1) * np.clip((b - t) / fade, 0, 1))
+        return env
 
-    def section(t):
-        for name in ("intro", "groove", "break", "outro"):
-            a, b = e[name]
-            if a <= t < b:
-                return name
-        return None
+    def coloured(lo, hi, tilt):
+        """Stereo noise between lo and hi Hz, rolled off by 1/f**tilt."""
+        f = np.fft.rfftfreq(n, 1 / RATE)
+        shape = np.where((f >= lo) & (f <= hi), 1 / np.maximum(f, 1) ** tilt, 0)
+        ch = [np.fft.irfft(np.fft.rfft(r.standard_normal(n)) * shape, n) for _ in range(2)]
+        return np.stack([c / np.abs(c).max() for c in ch], axis=1)
 
-    def pad(notes, dur, level):
-        m = int(RATE * (dur + 1.2))
-        t = np.arange(m) / RATE
-        sig = np.zeros(m)
-        for k in notes:
-            for det in (-0.004, 0.004):
-                f = note(k) * (1 + det)
-                for h in range(1, 7):
-                    sig += np.sin(2 * np.pi * f * h * t + h * det * 400) / h ** 1.7
-        env = np.minimum(1, t / 0.45) * np.where(t < dur, 1, np.exp(-(t - dur) / 0.35))
-        return level * 0.05 * sig * env * (1 + 0.08 * np.sin(2 * np.pi * 0.35 * t))
+    # a quiet room
+    out += 0.025 * coloured(40, 2500, 1.0) * spans("room")[:, None]
 
-    def pluck(k):
-        m = int(RATE * 0.9)
-        t = np.arange(m) / RATE
-        f = note(k)
-        sig = np.sin(2 * np.pi * f * t) + 0.45 * np.sin(4 * np.pi * f * t) * decay(m, 0.08) + 0.15 * np.sin(6 * np.pi * f * t) * decay(m, 0.04)
-        return sig * decay(m, 0.28) * np.minimum(1, t / 0.003)
+    # wind: low air with slow swells and gusts
+    swell = 0.55 + 0.25 * np.sin(2 * np.pi * 0.11 * t + 1) + 0.2 * np.sin(2 * np.pi * 0.37 * t) ** 2
+    wind = coloured(60, 1800, 0.9) * swell[:, None]
+    hiss = coloured(1500, 6000, 0.5) * (0.4 + 0.6 * np.sin(2 * np.pi * 0.23 * t) ** 2)[:, None]
+    gust = np.zeros(n)
+    for a, b in e.get("gusts", []):
+        gust += np.clip((t - a) / (b - a), 0, 1) ** 2 * np.exp(-np.clip(t - b, 0, None) / 0.5) * (t < b + 2)
+    out += (0.16 * wind + 0.03 * hiss) * (spans("wind", 1.2) + 1.6 * gust)[:, None]
 
-    def bass(k, dur):
-        m = int(RATE * dur)
-        t = np.arange(m) / RATE
-        f = note(k)
-        sig = np.sin(2 * np.pi * f * t) + 0.3 * np.sin(4 * np.pi * f * t)
-        return sig * np.minimum(1, t / 0.01) * decay(m, 0.6) * np.minimum(1, (dur - t) / 0.05)
+    # a distant sea: noise swelling and drawing back every few seconds
+    period = 5.5
+    phase = (t % period) / period
+    surge = np.where(phase < 0.35, (phase / 0.35) ** 2, np.exp(-(phase - 0.35) / 0.2))
+    out += 0.07 * coloured(150, 3500, 0.7) * (surge * spans("waves", 1.5))[:, None]
 
-    def kick():
-        m = int(RATE * 0.35)
-        t = np.arange(m) / RATE
-        return np.sin(2 * np.pi * np.cumsum(45 + 85 * np.exp(-t / 0.035)) / RATE) * decay(m, 0.13)
-
-    def snap():
-        m = int(RATE * 0.18)
-        return bandpass(rng.standard_normal(m), 1200, 6000) * decay(m, 0.04)
-
-    def hat():
-        m = int(RATE * 0.05)
-        return bandpass(rng.standard_normal(m), 7000, 14000) * decay(m, 0.012)
-
-    # pad and harmony, bar by bar (the bar the hit falls in is cut short; the hit brings in the last chord)
-    nbars = int(np.ceil(n / RATE / bar))
-    for b in range(nbars):
-        t0 = b * bar
-        sec = section(t0) or "outro"
-        if t0 >= hit:
-            break
-        chord = CHORDS[b % 4]
-        level = {"intro": 0.7, "groove": 1.0, "break": 0.8}.get(sec, 1.0)
-        put(pad(chord[1:], min(bar, hit - t0), level), t0)
-        # plucked arpeggio in eighths, one octave up; sparser in the intro and the break
-        arp = [chord[2] + 12, chord[3] + 12, chord[4] + 12, chord[3] + 12, chord[2] + 24, chord[4] + 12, chord[3] + 12, chord[1] + 12]
-        for i, k in enumerate(arp):
-            t = t0 + i * beat / 2
-            s2 = section(t)
-            if t >= hit or s2 is None or (s2 == "intro" and t < 1.2) or (s2 in ("intro", "break") and i % 2):
-                continue
-            put(pluck(k), t, pan=0.35 if i % 2 else -0.35, g={"intro": 0.05, "groove": 0.06, "break": 0.05}[s2])
-        if sec == "groove":
-            for i in range(4):
-                t = t0 + i * beat
-                if not (e["groove"][0] <= t < e["groove"][1]):
-                    continue
-                if i in (0, 2):
-                    put(kick(), t, g=0.32)
-                else:
-                    put(snap(), t, g=0.05)
-                put(hat(), t + beat / 2, pan=0.3, g=0.05)
-                put(bass(chord[0], beat * (0.9 if i in (0, 2) else 0.45)), t if i in (0, 2) else t + beat / 2, g=0.16 if i in (0, 2) else 0.1)
-
-    # risers into the flight and into the stamp
-    for a, b in e["risers"]:
-        m = int(RATE * (b - a))
-        t = np.arange(m) / RATE
-        sig = rng.standard_normal(m)
-        f = np.fft.rfft(sig)
-        freqs = np.fft.rfftfreq(m, 1 / RATE)
-        f[(freqs < 300) | (freqs > 9000)] = 0
-        sig = np.fft.irfft(f, m) * (t / (b - a)) ** 2.5
-        put(0.12 * sig / np.abs(sig).max(), a)
-
-    # the hit: a deep boom, a bright shimmer and the home chord held to the end
-    tail = n / RATE - hit
-    put(pad([50, 57, 62, 66, 69, 74], tail - 0.6, 1.4), hit)
-    m = int(RATE * 2.5)
-    t = np.arange(m) / RATE
-    put(0.3 * np.sin(2 * np.pi * np.cumsum(40 + 50 * np.exp(-t / 0.05)) / RATE) * decay(m, 0.7), hit)
-    put(0.05 * bandpass(rng.standard_normal(m), 5000, 15000) * decay(m, 0.9), hit)
-    for i, k in enumerate((74, 78, 81, 86)):
-        put(pluck(k), hit + 0.12 * i, pan=-0.3 + 0.2 * i, g=0.06)
-
-    # a long, soft hall on the music only
-    ir_n = int(RATE * 2.0)
-    for c in range(2):
-        ir = rng.standard_normal(ir_n) * decay(ir_n, 0.45)
-        ir /= np.sqrt((ir ** 2).sum())
-        wet = np.fft.irfft(np.fft.rfft(out[:, c], 2 * n) * np.fft.rfft(ir, 2 * n), 2 * n)[:n]
-        out[:, c] += 0.35 * wet
+    # birds: short phrases of quick chirps, near and far, left and right
+    birds = spans("birds", 1.0)
+    for a, b in e.get("birds", []):
+        at = a + r.uniform(0.1, 0.5)
+        while at < b:
+            near = r.random() < 0.6
+            base = r.uniform(2600, 4800) if near else r.uniform(3200, 5800)
+            pan = r.uniform(-0.8, 0.8)
+            kind = r.integers(3)
+            for k in range(int(r.integers(2, 7))):
+                d = r.uniform(0.05, 0.11) if kind else r.uniform(0.12, 0.2)
+                m = int(RATE * d)
+                u = np.arange(m) / m
+                # a rising or falling sweep, a little vibrato
+                sweep = base * (1 + (0.35 if kind == 1 else -0.3 if kind == 2 else 0.12 * np.sin(6 * np.pi * u)) * u)
+                sig = np.sin(2 * np.pi * np.cumsum(sweep * (1 + 0.02 * np.sin(2 * np.pi * 60 * u * d))) / RATE)
+                sig *= np.sin(np.pi * u) ** 2
+                i = int((at + k * (d + r.uniform(0.02, 0.06))) * RATE)
+                if i + m >= n:
+                    break
+                g = (0.085 if near else 0.03) * birds[i]
+                out[i:i + m, 0] += g * sig * np.sqrt((1 - pan) / 2)
+                out[i:i + m, 1] += g * sig * np.sqrt((1 + pan) / 2)
+            at += r.uniform(0.5, 1.6)
     return out
 
 
@@ -245,10 +187,10 @@ def main(src, dst):
         mix[i:i + len(sig), 1] += sig * np.sqrt((1 + pan) / 2)
 
     for e in data["events"]:
-        if e["kind"] == "music":
+        if e["kind"] == "ambience":
             continue
-        if e["kind"] in ("chime", "whoosh", "pop", "sparkle", "stamp", "fold"):
-            sig = {"chime": chime, "pop": pop, "sparkle": sparkle, "stamp": stamp, "fold": fold}.get(e["kind"], lambda: whoosh(e["dur"]))()
+        if e["kind"] in ("chime", "whoosh", "pop", "sparkle", "stamp", "fold", "flutter"):
+            sig = {"chime": chime, "pop": pop, "sparkle": sparkle, "stamp": stamp, "fold": fold, "flutter": flutter}.get(e["kind"], lambda: whoosh(e["dur"]))()
             add(e.get("gain", 1.0) * sig, e["t"], e.get("pan", 0.0))
             continue
         gain, pan = e.get("gain", 1.0), e.get("pan", 0.0)
@@ -263,9 +205,9 @@ def main(src, dst):
     for c in range(2):
         wet = np.fft.irfft(np.fft.rfft(mix[:, c], 2 * n) * np.fft.rfft(ir, 2 * n), 2 * n)[:n]
         mix[:, c] += 0.18 * wet
-    if any(e["kind"] == "music" for e in data["events"]):
-        mix += music(next(e for e in data["events"] if e["kind"] == "music"), n)
-        # a soft limiter, so the stamp's hit doesn't leave everything else quiet
+    if any(e["kind"] == "ambience" for e in data["events"]):
+        mix += ambience(next(e for e in data["events"] if e["kind"] == "ambience"), n)
+        # a soft limiter, so the stamp's thud doesn't leave everything else quiet
         mix = np.tanh(mix * 0.62 / np.percentile(np.abs(mix), 99.9))
 
     fade = int(RATE * 0.6)
