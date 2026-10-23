@@ -103,7 +103,7 @@ def main(src, dst):
     for e in data["events"]:
         if e["kind"] in ("chime", "whoosh", "pop", "sparkle", "stamp"):
             sig = {"chime": chime, "pop": pop, "sparkle": sparkle, "stamp": stamp}.get(e["kind"], lambda: whoosh(e["dur"]))()
-            add(sig, e["t"])
+            add(e.get("gain", 1.0) * sig, e["t"], e.get("pan", 0.0))
             continue
         gain, pan = e.get("gain", 1.0), e.get("pan", 0.0)
         add(gain * clack(e["kind"] == "big"), e["t"], pan)
