@@ -1,0 +1,42 @@
+<!doctype html>
+<!-- Source of the reels in assets/video/reels: vertical (1080×1920) and a pure function of time.
+     ?reel=<name> loads reels/<name>.js, which builds its own scene into #stage and draws frame t with REEL.frame(t);
+     ?lang=en|it picks the copy. Render with: node tools/reels/render_reel.mjs <name> -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<script src="lib.js"></script>
+<script>document.write('<script src="reels/' + (new URLSearchParams(location.search).get("reel") || "hello").replace(/[^a-z0-9-]/g, "") + '.js"><\/script>');</script>
+<style>
+  @font-face { font-family: "Outfit"; src: url("../../assets/fonts/outfit.woff2") format("woff2"); font-weight: 100 900; }
+  @font-face { font-family: "Manrope"; src: url("../../assets/fonts/manrope.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Anton"; src: url("fonts/anton.woff2") format("woff2"); }
+  @font-face { font-family: "DM Serif Display"; src: url("fonts/dm-serif-display.woff2") format("woff2"); }
+  @font-face { font-family: "Caveat"; src: url("fonts/caveat.woff2") format("woff2"); font-weight: 400 700; }
+  @font-face { font-family: "Space Mono"; src: url("fonts/space-mono.woff2") format("woff2"); font-weight: 400; }
+  @font-face { font-family: "Space Mono"; src: url("fonts/space-mono-bold.woff2") format("woff2"); font-weight: 700; }
+  @font-face { font-family: "Tilt Neon"; src: url("fonts/tilt-neon.woff2") format("woff2"); }
+  /* scripts for "hello" in Bengali and Hindi; Latin text never reaches these */
+  @font-face { font-family: "Noto Sans Bengali"; src: url("../promo-video/fonts/noto-sans-bengali.woff2") format("woff2"); font-weight: 500 800; unicode-range: U+0951-0952, U+0964-0965, U+0980-09FE, U+200C-200D, U+25CC; }
+  @font-face { font-family: "Noto Sans Devanagari"; src: url("fonts/noto-sans-devanagari.woff2") format("woff2"); font-weight: 700; unicode-range: U+0900-097F; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1920px; }
+  body { position: relative; overflow: hidden; background: #0c0a09; color: #fff; font-family: "Manrope", sans-serif; }
+  #stage { position: absolute; inset: 0; overflow: hidden; }
+  .abs { position: absolute; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+const R = window.REEL;
+const lang = R.copy[new URLSearchParams(location.search).get("lang")] ? new URLSearchParams(location.search).get("lang") : R.langs[0];
+document.documentElement.lang = lang;
+const END = R.end;  // read before build, which may keep its own elements on the reel object
+R.build($("stage"), R.copy[lang], lang);
+window.render = t => R.frame(t);
+window.TIMELINE = { seconds: R.seconds, langs: R.langs, music: R.music, end: END, cues: R.cues };
+render(0);
+</script>
+</body>
+</html>

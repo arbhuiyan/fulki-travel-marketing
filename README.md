@@ -38,6 +38,30 @@ melody hummed quietly beneath it, a low natural soundscape for each scene, and o
 on each scene change and a phone call-to-action at the end. Each promo picks its own hum and soundscapes; other
 soundtracks are listed in `make_audio.py` and chosen with `--sound`. A new country is a new file in `promos/`.
 
+## Reels
+
+Ten short vertical (1080×1920) reels in `assets/video/reels`, each in its own visual style and on its own topic, in
+English and Italian (`fulki-<name>-en.mp4`, `fulki-<name>-it.mp4`). Each is drawn by one file in `tools/reels/reels/`
+on top of `tools/reels/reel.html` and `lib.js`:
+
+| Reel | Topic | Look | Music |
+| --- | --- | --- | --- |
+| `hello` | We speak your language (5 greetings) | kinetic poster type, flat colour wipes | pop |
+| `chat` | Book on WhatsApp, a real person replies | a phone chat with typing and bubbles | lo-fi |
+| `ticket` | How it works: three steps, no surprises | a boarding pass that prints, gets stamped and torn | corporate |
+| `passport` | Any route: one-way, return, multi-city | a passport filling with ink stamps | pop |
+| `wintersun` | Winter sun getaways | retro risograph travel poster | tropical |
+| `calendar` | Book early for Christmas, Eid and summer | tear-off wall calendar, sticky notes | pop |
+| `visit` | Come and see us in Arzignano | flat illustrated town map, pin drop, shopfront | acoustic |
+| `b2b` | Become a B2B partner | dark blueprint, self-drawing line icons | corporate |
+| `family` | Families & groups on one booking | kraft-paper scrapbook with polaroids | acoustic |
+| `neon` | Changes & support, even after ticketing | neon signs at night | synthwave |
+
+Render with `node tools/reels/render_reel.mjs <name|all> [en|it]` (needs Playwright, ffmpeg and Python with numpy);
+`--stills <lang> <seconds...>` writes PNG frames to check. The soundtrack is synthesized by `tools/reels/make_audio.py`:
+a music bed in the reel's style and sound effects on the cues each reel lists (typing, stamps, paper tearing, neon
+buzz…). Fonts and their licences are listed in `tools/reels/fonts/README.md`.
+
 ## Contact
 
 - **Address:** Via 4 Martiri, 44, 36071 Arzignano (VI), Italy
