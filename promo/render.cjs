@@ -1,6 +1,6 @@
 // Renders promo/index.html frame by frame and pipes it to ffmpeg.
 //   node promo/render.cjs stills 1920 1080 outDir 1,5.5,13
-//   node promo/render.cjs clicks 1920 1080 clicks.json
+//   node promo/render.cjs events 1920 1080 events.json
 //   node promo/render.cjs video  1920 1080 out.mp4 audio.wav
 const http = require('http');
 const fs = require('fs');
@@ -37,8 +37,8 @@ function serve() {
   if (mode === 'stills') {
     fs.mkdirSync(out, { recursive: true });
     for (const t of extra.split(',').map(Number)) fs.writeFileSync(path.join(out, `t${String(t.toFixed(2)).padStart(5, '0')}.png`), await frame(t));
-  } else if (mode === 'clicks') {
-    fs.writeFileSync(out, JSON.stringify(await page.evaluate(() => window.getClicks())));
+  } else if (mode === 'events') {
+    fs.writeFileSync(out, JSON.stringify(await page.evaluate(() => window.getEvents())));
   } else if (mode === 'video') {
     const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'png', '-i', '-',
       '-i', extra, '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-r', String(FPS),
