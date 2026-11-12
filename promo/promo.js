@@ -304,64 +304,112 @@ function vHome(t) {
   alpha(seg(t, T.zoom[1] - 0.7, T.zoom[1] - 0.1), () => { X.fillStyle = '#FFB24A'; X.fillRect(0, 0, VW, VH); });
 }
 
-/* View 5: inside that window */
-function person(x, g, h, o) {
-  const { dir = 1, walk = 0, phase = 0, hug = 0, raise = 0, hop = 0, handle = null, dress = false, color = '#3A1A08' } = o;
-  const y = g - Math.abs(Math.sin(phase)) * h * 0.018 * walk - hop, lean = dir * hug * h * 0.035;
-  X.fillStyle = color; X.strokeStyle = color; X.lineCap = 'round'; X.lineJoin = 'round';
-  if (dress) {
-    X.beginPath(); X.moveTo(x - h * 0.11, y - h * 0.5); X.lineTo(x + h * 0.11, y - h * 0.5); X.lineTo(x + h * 0.17, y); X.lineTo(x - h * 0.17, y); X.closePath(); X.fill();
-    X.beginPath(); X.moveTo(x - dir * h * 0.06, y - h * 0.86); X.quadraticCurveTo(x - dir * h * 0.2, y - h * 0.7, x - dir * h * 0.16, y - h * 0.4); X.lineTo(x - dir * h * 0.05, y - h * 0.5); X.fill();
+/* View 5: inside that window. Home is told through things, not people:
+   the door opens, a suitcase rolls in, a pair of shoes joins the family's shoes,
+   the tea is already poured and a "Welcome home" card swings under the garland. */
+function shoe(x, y, s, col, kind) {
+  X.fillStyle = col;
+  if (kind === 'sandal') {
+    rr(x - s * 0.55, y - s * 0.12, s * 1.1, s * 0.12, s * 0.06); X.fill();
+    X.strokeStyle = col; X.lineWidth = s * 0.09; X.lineCap = 'round';
+    X.beginPath(); X.arc(x + s * 0.12, y - s * 0.12, s * 0.2, Math.PI, 0); X.stroke();
   } else {
-    X.lineWidth = h * 0.085;
-    for (const s of [-1, 1]) {
-      const a = s * Math.sin(phase) * 0.38 * walk, hx = x + s * h * 0.045, hy = y - h * 0.47;
-      X.beginPath(); X.moveTo(hx, hy); X.lineTo(hx + Math.sin(a) * h * 0.44 * dir, hy + Math.cos(a) * h * 0.44); X.stroke();
-    }
+    X.beginPath(); X.moveTo(x - s * 0.55, y); X.lineTo(x - s * 0.55, y - s * 0.32);
+    X.quadraticCurveTo(x - s * 0.5, y - s * 0.46, x - s * 0.22, y - s * 0.44);
+    X.quadraticCurveTo(x + s * 0.05, y - s * 0.24, x + s * 0.4, y - s * 0.22);
+    X.quadraticCurveTo(x + s * 0.6, y - s * 0.18, x + s * 0.58, y); X.closePath(); X.fill();
+    X.fillStyle = 'rgba(255,255,255,0.35)'; X.fillRect(x - s * 0.55, y - s * 0.07, s * 1.13, s * 0.05);
   }
-  rr(x - h * 0.12 + lean * 0.5, y - h * 0.81, h * 0.24, h * 0.38, h * 0.09); X.fill();
-  X.beginPath(); X.arc(x + lean * 1.4, y - h * 0.9, h * 0.078, 0, 7); X.fill();
-  X.fillRect(x - h * 0.03 + lean, y - h * 0.84, h * 0.06, h * 0.06);
-  X.lineWidth = h * 0.062;
-  for (const s of [-1, 1]) {
-    const sx = x + s * h * 0.09 + lean * 0.6, sy = y - h * 0.75, sw = -s * Math.sin(phase) * 0.45 * walk;
-    let ex = sx + Math.sin(sw) * h * 0.34 * dir, ey = sy + Math.cos(sw) * h * 0.34;
-    if (handle && s === -dir) { ex = handle[0]; ey = handle[1]; }
-    ex = lerp(ex, x + dir * h * (s === dir ? 0.3 : 0.26), hug); ey = lerp(ey, sy + h * (s === dir ? 0.06 : 0), hug);
-    ex = lerp(ex, sx + s * h * 0.07, raise); ey = lerp(ey, sy - h * 0.3, raise);
-    X.beginPath(); X.moveTo(sx, sy); X.lineTo(ex, ey); X.stroke();
+}
+function pair(x, y, s, col, kind) { shoe(x - s * 0.12, y - s * 0.06, s * 0.92, shade(col), kind); shoe(x + s * 0.12, y, s, col, kind); }
+const shade = c => c + 'B0';
+function cup(x, y, s, t, k) {
+  X.fillStyle = '#FFF7ED'; X.beginPath(); X.moveTo(x - s * 0.5, y - s * 0.7); X.lineTo(x + s * 0.5, y - s * 0.7); X.lineTo(x + s * 0.38, y); X.lineTo(x - s * 0.38, y); X.closePath(); X.fill();
+  X.strokeStyle = '#FFF7ED'; X.lineWidth = s * 0.12; X.beginPath(); X.arc(x + s * 0.5, y - s * 0.4, s * 0.18, -1.3, 1.3); X.stroke();
+  X.fillStyle = C.orange; X.fillRect(x - s * 0.44, y - s * 0.5, s * 0.86, s * 0.12);
+  X.strokeStyle = 'rgba(255,255,255,0.55)'; X.lineWidth = s * 0.08; X.lineCap = 'round';
+  for (let j = 0; j < 2; j++) {
+    X.beginPath();
+    for (let i = 0; i <= 12; i++) { const u = i / 12, yy = y - s * 0.85 - u * s * 1.4, xx = x + (j - 0.5) * s * 0.3 + Math.sin(u * 5 + t * 3 + k + j) * s * 0.16;
+      i ? X.lineTo(xx, yy) : X.moveTo(xx, yy); }
+    X.stroke();
   }
 }
 function vReunion(t) {
-  const g = VH * 0.84, h = VH * 0.36;
-  X.fillStyle = vgrad(0, VH, [[0, '#F7A552'], [1, '#EC7524']]); X.fillRect(0, 0, VW, VH);
-  glow(VW * 0.56, VH * 0.26, VW * 0.9, '255,236,180', 0.85);
-  // door the traveller came through
-  X.fillStyle = '#FFF3D4'; X.fillRect(VW * 0.07, g - h * 1.22, VW * 0.24, h * 1.22);
-  X.fillStyle = '#B1511A'; X.fillRect(0, g, VW, VH - g);
-  X.fillStyle = 'rgba(255,243,212,0.3)'; X.beginPath(); X.moveTo(VW * 0.07, g); X.lineTo(VW * 0.31, g); X.lineTo(VW * 0.62, VH); X.lineTo(-VW * 0.1, VH); X.fill();
+  const g = VH * 0.72, R0 = T.zoom[1];
+  // room
+  X.fillStyle = vgrad(0, g, [[0, '#F7A552'], [1, '#F28A35']]); X.fillRect(0, 0, VW, g);
+  glow(VW * 0.6, VH * 0.25, VW * 0.9, '255,236,180', 0.8);
+  X.fillStyle = vgrad(g, VH, [[0, '#B85A1F'], [1, '#93451A']]); X.fillRect(0, g, VW, VH - g);
+  // door opens and light spills in
+  const dx0 = VW * 0.05, dw = VW * 0.25, dh = VH * 0.5, open = eio(seg(t, R0 + 0.3, R0 + 1.0));
+  X.fillStyle = '#FFF6DE'; X.fillRect(dx0, g - dh, dw, dh);
+  alpha(open, () => {
+    X.fillStyle = 'rgba(255,246,222,0.45)'; X.beginPath(); X.moveTo(dx0, g); X.lineTo(dx0 + dw, g); X.lineTo(dx0 + dw * 2.4, VH); X.lineTo(dx0 - dw * 0.4, VH); X.closePath(); X.fill();
+  });
+  X.fillStyle = '#7A3510'; X.fillRect(dx0, g - dh, dw * (1 - 0.82 * open), dh);
+  X.fillStyle = '#FFD08A'; X.beginPath(); X.arc(dx0 + dw * (1 - 0.82 * open) - dw * 0.12 * (1 - open), g - dh * 0.48, dw * 0.04, 0, 7); X.fill();
+  X.strokeStyle = '#5C2A0C'; X.lineWidth = 6; X.strokeRect(dx0, g - dh, dw, dh);
+  // garland and welcome card
+  const gy = VH * 0.1;
+  X.strokeStyle = '#5C2A0C'; X.lineWidth = 2; X.beginPath(); X.moveTo(0, gy); X.quadraticCurveTo(VW / 2, gy + VH * 0.12, VW, gy); X.stroke();
+  for (let i = 0; i <= 18; i++) {
+    const u = i / 18, x = u * VW, y = (1 - u) * (1 - u) * gy + 2 * u * (1 - u) * (gy + VH * 0.12) + u * u * gy;
+    X.fillStyle = i % 2 ? '#FBBF24' : C.orange; X.beginPath(); X.arc(x, y + 4, VW * 0.022, 0, 7); X.fill();
+  }
+  const cp = seg(t, R0 + 1.2, R0 + 1.8);
+  if (cp > 0) {
+    const cx = VW * 0.62, cy = gy + VH * 0.09, cw = VW * 0.5, ch = VH * 0.14;
+    const sway = Math.sin((t - R0 - 1.2) * 4.5) * 0.12 * Math.exp(-(t - R0 - 1.2) * 1.2);
+    X.save(); X.translate(cx, cy); X.rotate(sway); X.scale(eback(cp), eback(cp));
+    X.strokeStyle = '#5C2A0C'; X.lineWidth = 2; X.beginPath(); X.moveTo(-cw * 0.3, 0); X.lineTo(-cw * 0.3, VH * 0.03); X.moveTo(cw * 0.3, 0); X.lineTo(cw * 0.3, VH * 0.03); X.stroke();
+    rr(-cw / 2, VH * 0.03, cw, ch, 14); X.fillStyle = '#FFFBF3'; X.fill();
+    txt('Welcome', 0, VH * 0.03 + ch * 0.45, { size: ch * 0.3, weight: 700, color: C.ink });
+    txt('home!', 0, VH * 0.03 + ch * 0.82, { size: ch * 0.3, weight: 700, color: C.orange });
+    X.restore();
+  }
+  // table with tea already poured, one cup for each of us
+  const tx = VW * 0.56, tw = VW * 0.4, ty = g - VH * 0.17;
+  X.fillStyle = '#6B2F0E'; X.fillRect(tx + tw * 0.08, ty, tw * 0.05, VH * 0.17); X.fillRect(tx + tw * 0.87, ty, tw * 0.05, VH * 0.17);
+  rr(tx - tw * 0.02, ty - VH * 0.018, tw * 1.04, VH * 0.03, 6); X.fillStyle = '#8A3F14'; X.fill();
+  const cs = VW * 0.058;
+  [0.14, 0.36, 0.64, 0.86].forEach((u, k) => cup(tx + tw * u, ty - VH * 0.018, cs, t, k * 1.7));
+  X.fillStyle = '#FFF7ED'; X.beginPath(); X.ellipse(tx + tw * 0.5, ty - VH * 0.02, tw * 0.1, VH * 0.008, 0, 0, 7); X.fill();
+  for (let i = 0; i < 3; i++) { X.fillStyle = i === 1 ? '#FBBF24' : '#FDE7C4'; X.beginPath(); X.arc(tx + tw * (0.44 + i * 0.06), ty - VH * 0.03 - (i === 1 ? 6 : 0), VW * 0.017, 0, 7); X.fill(); }
+  // suitcase rolls in from the door
+  const sp = eo(seg(t, R0 + 0.9, R0 + 2.0)), sw = VW * 0.13, sh = VH * 0.17;
+  if (sp > 0) {
+    const sx = lerp(dx0 + dw * 0.5, VW * 0.42, sp), sy = g + VH * 0.05;
+    const handle = 1 - eio(seg(t, R0 + 2.2, R0 + 2.5));
+    X.fillStyle = '#3A1A08';
+    X.fillRect(sx - 2, sy - sh - VH * 0.09 * handle, 4, VH * 0.09 * handle); X.fillRect(sx - sw * 0.2, sy - sh - VH * 0.09 * handle - 3, sw * 0.4, 6);
+    rr(sx - sw / 2, sy - sh, sw, sh, 10); X.fillStyle = C.orange; X.fill();
+    X.fillStyle = 'rgba(0,0,0,0.18)'; X.fillRect(sx - sw * 0.25, sy - sh, sw * 0.08, sh); X.fillRect(sx + sw * 0.17, sy - sh, sw * 0.08, sh);
+    X.fillStyle = '#3A1A08'; for (const w of [-0.32, 0.32]) { X.beginPath(); X.arc(sx + sw * w, sy + 4, 6, 0, 7); X.fill(); }
+  }
+  // the family's shoes wait on the mat; the traveller's pair slides in last
+  const my = VH * 0.86;
+  rr(VW * 0.12, my - VH * 0.012, VW * 0.76, VH * 0.04, 10); X.fillStyle = '#E8B04A'; X.fill();
+  X.strokeStyle = 'rgba(122,53,16,0.35)'; X.lineWidth = 2; X.setLineDash([6, 6]); rr(VW * 0.135, my - VH * 0.004, VW * 0.73, VH * 0.024, 8); X.stroke(); X.setLineDash([]);
+  const ss = VW * 0.12;
+  pair(VW * 0.24, my, ss, '#5C2A0C', 'shoe');
+  pair(VW * 0.42, my, ss * 0.95, '#C2410C', 'sandal');
+  pair(VW * 0.57, my, ss * 0.62, '#FBBF24', 'shoe');
+  const np = eo(seg(t, R0 + 2.5, R0 + 3.1));
+  if (np > 0) alpha(Math.min(1, np * 4), () => pair(lerp(VW * 0.3, VW * 0.74, np), my, ss, '#171717', 'shoe'));
+  // a heart rises from the steam once everything is in place
+  const hp = seg(t, R0 + 3.2, R0 + 3.7);
+  if (hp > 0) {
+    const hx = tx + tw * 0.5, hy = ty - VH * 0.12 - hp * 14, hs = VW * 0.05 * eback(hp);
+    X.fillStyle = '#FFFFFF'; X.beginPath(); X.moveTo(hx, hy + hs * 0.35);
+    X.bezierCurveTo(hx - hs * 0.9, hy - hs * 0.25, hx - hs * 0.45, hy - hs * 0.85, hx, hy - hs * 0.38);
+    X.bezierCurveTo(hx + hs * 0.45, hy - hs * 0.85, hx + hs * 0.9, hy - hs * 0.25, hx, hy + hs * 0.35); X.fill();
+  }
   // lamp
-  const lx = VW * 0.56;
-  X.strokeStyle = '#3A1A08'; X.lineWidth = 3; X.beginPath(); X.moveTo(lx, 0); X.lineTo(lx, VH * 0.15); X.stroke();
-  X.fillStyle = '#3A1A08'; X.beginPath(); X.moveTo(lx - 14, VH * 0.15); X.lineTo(lx + 14, VH * 0.15); X.lineTo(lx + 34, VH * 0.2); X.lineTo(lx - 34, VH * 0.2); X.fill();
-  X.fillStyle = '#FFF6DC'; X.beginPath(); X.ellipse(lx, VH * 0.2, 30, 7, 0, 0, 7); X.fill();
-  // people
-  const mx = VW * 0.57;
-  const hug = eo(seg(t, 31.5, 32.1));
-  const tw = eo(seg(t, 29.9, 31.6)), tS = VW * 0.17, tE = mx - h * 0.2;
-  const tx0 = lerp(tS, tE, tw), tx = tx0 + hug * h * 0.065;
-  const walk = 1 - seg(t, 31.3, 31.6);
-  const stopX = VW * 0.26, scx = Math.min(tx0 - h * 0.34, stopX), holding = tx0 - h * 0.34 < stopX;
-  const sw = h * 0.2, sh = h * 0.34;
-  X.fillStyle = '#3A1A08'; rr(scx - sw / 2, g - sh - h * 0.03, sw, sh, h * 0.03); X.fill();
-  X.strokeStyle = '#3A1A08'; X.lineWidth = h * 0.02;
-  const hTop = [scx + h * 0.05, g - sh - h * 0.2];
-  X.beginPath(); X.moveTo(scx + h * 0.05, g - sh); X.lineTo(hTop[0], hTop[1]); X.stroke();
-  person(mx + h * 0.2 - hug * h * 0.065, g, h * 0.93, { dir: -1, hug: Math.max(hug, 0.35 * eo(seg(t, 30.6, 31.4))), dress: true });
-  person(tx, g, h, { dir: 1, walk, phase: (tx0 - tS) / (h * 0.42) * Math.PI, hug, handle: holding ? hTop : null });
-  const cw = eo(seg(t, 31.0, 32.4)), cS = VW * 1.15, cE = mx + h * 0.52, cx = lerp(cS, cE, cw);
-  const hop = t > 32.4 ? Math.abs(Math.sin((t - 32.4) * 7)) * h * 0.05 * (1 - seg(t, 33.2, 33.8)) : 0;
-  person(cx, g, h * 0.52, { dir: -1, walk: 1 - seg(t, 32.2, 32.4), phase: (cS - cx) / (h * 0.2) * Math.PI, raise: eo(seg(t, 32.2, 32.6)), hop });
+  const lx = VW * 0.3;
+  X.strokeStyle = '#3A1A08'; X.lineWidth = 3; X.beginPath(); X.moveTo(lx, 0); X.lineTo(lx, VH * 0.2); X.stroke();
+  X.fillStyle = '#3A1A08'; X.beginPath(); X.moveTo(lx - 14, VH * 0.2); X.lineTo(lx + 14, VH * 0.2); X.lineTo(lx + 32, VH * 0.25); X.lineTo(lx - 32, VH * 0.25); X.fill();
+  X.fillStyle = '#FFF6DC'; X.beginPath(); X.ellipse(lx, VH * 0.25, 28, 6, 0, 0, 7); X.fill();
 }
 
 /* The wing with its orange winglet stays in frame for the whole flight */
@@ -571,11 +619,14 @@ function headlines(t) {
       alpha(sa, () => w.lines.forEach((l, i) => txt(l, TX, sy + i * ss * 1.4 + (1 - sa) * 10, { size: ss, weight: 500, font: 'Manrope', color: C.muted, align })));
     }
   }
-  // small logo stays on screen until the sign-off
+  // flip icon stays on screen until the sign-off
   const la = Math.min(eo(seg(t, 0.6, 1.4)), 1 - seg(t, T.final - 0.5, T.final));
   alpha(la, () => {
-    const lw = LAND ? 250 : 330, lh = lw * 276 / 795;
-    X.drawImage(IMG.horiz, LAND ? TX - lw * 0.075 : CX - lw / 2, LAND ? 140 : 52, lw, lh);
+    const sz = LAND ? 118 : 130, p = eback(seg(t, 0.6, 1.3));
+    const x = LAND ? TX : CX - sz / 2, y = LAND ? 128 : 42;
+    X.save(); X.translate(x + sz / 2, y + sz / 2); X.scale(p, p); X.translate(-(x + sz / 2), -(y + sz / 2));
+    X.shadowColor = 'rgba(120,60,20,0.25)'; X.shadowBlur = 24; X.shadowOffsetY = 8;
+    X.drawImage(IMG.flap, x, y, sz, sz); X.restore();
   });
 }
 
@@ -641,7 +692,9 @@ function getEvents() {
   e.push(['zoom', T.zoom[0]], ['morph', T.card[0]]);
   for (const m of T.msgs) { if (m.who === 'u') e.push(['send', m.t]); else e.push(['typing', m.t - 1.0], ['recv', m.t]); }
   T.rows.forEach(r => e.push(['pop', r])); e.push(['pop', T.b2b]);
-  e.push(['land', T.final + 0.3], ['bell', T.final + 2.4]);
+  const R0 = T.zoom[1];
+  e.push(['door', R0 + 0.3], ['roll', R0 + 0.9], ['card', R0 + 1.2], ['stop', R0 + 2.0], ['handle', R0 + 2.2], ['shoes', R0 + 2.5], ['heart', R0 + 3.2]);
+  e.push(['land', T.final + 0.3], ['logo', T.final + 2.4]);
   return e;
 }
 
@@ -650,8 +703,8 @@ async function init() {
   const svg = await (await fetch('../assets/logo/fulki-travel-tours-primary.svg')).text();
   const paths = [...new DOMParser().parseFromString(svg, 'image/svg+xml').querySelectorAll('path')].map(p => new Path2D(p.getAttribute('d')));
   [LOGO.word, LOGO.trail, LOGO.plane, LOGO.tag] = paths;
-  IMG.horiz = await loadImg('../assets/logo/fulki-travel-tours-horizontal.svg');
-  IMG.round = await loadImg('../assets/logo/fulki-icon-round.svg');
+  IMG.flap = await loadImg('../assets/logo/f-board/fulki-f-flap-black-orange.svg');
+  IMG.round = await loadImg('../assets/logo/f-board/fulki-f-flap-black-orange-round.svg');
   await Promise.all(['600 40px Outfit', '700 40px Outfit', '500 40px Manrope', '600 40px Manrope'].map(f => document.fonts.load(f)));
   await document.fonts.ready;
   render(+(Q.get('t') || 0));

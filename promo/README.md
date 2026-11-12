@@ -6,7 +6,8 @@
 | `out/fulki-window-seat-9x16.mp4` | 1080×1920, 60 s | Instagram Reels / Stories, TikTok, WhatsApp Status |
 
 The whole film is seen through one airplane window on a warm paper background.
-The soundtrack is an original synthesised music bed plus sound design, so there is nothing to license.
+The departures-board flip icon (`assets/logo/f-board/`) marks every scene and the chat avatar; the full lockup appears only on the final screen.
+No music and no human figures: the soundtrack is real-world sound only (cabin, wind, birds, water, door, suitcase, chat notifications), and the homecoming is told through objects.
 
 | Time | What happens |
 | --- | --- |
@@ -14,7 +15,7 @@ The soundtrack is an original synthesised music bed plus sound design, so there 
 | 2.5–10 s | The shade lifts on a sunrise above the clouds. **Take a journey with us.** |
 | 10–22 s | Flying through cloud between views: snow peaks, a golden desert city, a skyline after dark. **See the world.** |
 | 22–27 s | Descending over a green river delta. **But the best view isn't a place.** |
-| 27–34 s | Zoom into one house's lit window; inside, the traveller is hugged at the door. **Meet your loved ones.** |
+| 27–34 s | Zoom into one house's lit window: the door opens, a suitcase rolls in, a pair of shoes joins the family's shoes on the mat, tea is poured for everyone, "Welcome home!" swings under the garland. **Meet your loved ones.** |
 | 34–46 s | The window becomes a chat with Fulki: compare airlines, book, stay in touch. **A real person by your side.** |
 | 46–52 s | In the office · By phone · On WhatsApp · B2B partners welcome. **Talk to us, your way.** |
 | 52–60 s | The plane draws the FULKI Travel & Tours logo; address, phone, website, Instagram |
@@ -27,7 +28,7 @@ Preview in a browser by serving the repo root and opening `/promo/index.html?pla
 ```sh
 S=/tmp/promo; mkdir -p $S
 node promo/render.cjs events 1920 1080 $S/events.json     # timeline for the soundtrack
-python3 promo/sfx.py $S/events.json $S/audio.wav           # needs numpy
+python3 promo/sfx.py $S/events.json $S/audio.wav           # sound design, needs numpy
 node promo/render.cjs video 1920 1080 promo/out/fulki-window-seat-16x9.mp4 $S/audio.wav   # needs Playwright + ffmpeg
 node promo/render.cjs video 1080 1920 promo/out/fulki-window-seat-9x16.mp4 $S/audio.wav
 ```
