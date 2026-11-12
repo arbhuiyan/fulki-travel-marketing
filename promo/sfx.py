@@ -96,6 +96,43 @@ def birds(t0, t1, gain):
         t += rng.uniform(0.6, 1.6)
 
 
+def heartbeat(t0, t1, bpm0, bpm1, gain):
+    """Soft lub-dub that quickens as we get closer to home."""
+    t = t0
+    while t < t1:
+        u = (t - t0) / (t1 - t0)
+        fade = min(1, (t - t0) / 0.8) * min(1, (t1 - t) / 0.6)
+        add(knock(58, 0.16, 0.02), t, 0, gain * fade)
+        add(knock(48, 0.14, 0.02), t + 0.24, 0, gain * 0.6 * fade)
+        t += 60 / (bpm0 + (bpm1 - bpm0) * u)
+
+
+def murmur(t0, t1, gain):
+    """Distant terminal crowd: band-limited noise with speech-like movement, no words."""
+    env = window(t0, t1, 0.8)
+    for k in range(4):
+        rate = rng.uniform(2.5, 5.0)
+        am = np.clip(np.sin(2 * np.pi * rate * T + rng.uniform(0, 6)) * np.sin(2 * np.pi * 0.4 * T + k), 0, 1)
+        bed(250 + 80 * k, 1800 - 150 * k, gain, env * (0.3 + 0.7 * am), 911 + 1300 * k)
+
+
+def pour(t, dur, gain, pan):
+    n = int(SR * dur)
+    tt = np.arange(n) / SR
+    blocks = np.repeat(rng.uniform(0.3, 1.0, n // 1200 + 1), 1200)[:n]
+    blocks = np.convolve(blocks, np.ones(400) / 400, 'same')
+    s = noise(n, 500, 2800) * blocks * np.minimum(tt / 0.1, 1) * np.clip((dur - tt) / 0.25, 0, 1)
+    add(s, t, pan, gain)
+
+
+def touchdown(t, gain):
+    for k, dt in enumerate([0.0, 0.18]):
+        n = int(SR * 0.16); tt = np.arange(n) / SR
+        add(noise(n, 1400, 4200) * np.exp(-tt / 0.05), t + dt, -0.2 + 0.4 * k, gain * (1 - 0.3 * k))
+    n = int(SR * 2.2); tt = np.arange(n) / SR
+    add(noise(n, 40, 300) * np.exp(-tt / 0.9) * np.minimum(tt / 0.05, 1), t, 0, gain * 0.9)
+
+
 def build(events):
     ev = dict()
     for k, t in events:
@@ -108,8 +145,15 @@ def build(events):
     hum = (np.sin(2 * np.pi * 96 * T) * 0.5 + np.sin(2 * np.pi * 192.5 * T) * 0.2) * (1 + 0.15 * np.sin(2 * np.pi * 0.3 * T))
     out[:, 0] += hum * cabin * 0.02
     out[:, 1] += hum * cabin * 0.02
+    murmur(0.0, 3.2, 0.03)
+    add(knock(240, 0.1, 0.7), 0.35, 0.6, 0.18)                                  # overhead bin closes
+    spool = np.clip((T - 1.5) / 4.0, 0, 1) * window(0, 9.0, 2.0)
+    out[:, 0] += noise(N, 600, 3000) * spool * 0.025
+    out[:, 1] += np.roll(noise(N, 600, 3000), 333) * spool * 0.025
     v = ev['cloud']
+    howl = 0.5 + 0.5 * np.sin(2 * np.pi * 0.22 * T) ** 2
     bed(200, 1200, 0.05, window(v[0] + 0.3, v[1] - 0.3, 0.8))                  # high mountain wind
+    bed(500, 900, 0.05, window(v[0] + 0.3, v[1] - 0.3, 0.8) * howl)
     gust = 0.6 + 0.4 * np.sin(2 * np.pi * 0.35 * T)
     bed(150, 900, 0.07, window(v[1] + 0.3, v[2] - 0.3, 0.8) * gust)             # desert wind
     bed(50, 400, 0.05, window(v[2] + 0.3, v[3] - 0.3, 0.8))                     # distant city at night
@@ -117,6 +161,14 @@ def build(events):
     ripple = 0.55 + 0.45 * np.abs(np.sin(2 * np.pi * 1.7 * T) * np.sin(2 * np.pi * 0.63 * T))
     bed(500, 2500, 0.05, delta * ripple)                                         # river water
     birds(v[3] + 0.4, zoom + 0.5, 0.05)
+    birds(v[3] + 0.9, zoom + 0.2, 0.035)
+    heartbeat(zoom - 0.6, zoom + 2.9, 62, 96, 0.55)
+    door = ev['door'][0]
+    kettle = window(door - 0.2, door + 2.6, 0.7) * np.clip((T - door + 0.2) / 2.0, 0.3, 1)
+    bed(2500, 7000, 0.025, kettle)                                               # kettle simmering
+    bed(80, 400, 0.03, kettle * (0.6 + 0.4 * (np.sin(2 * np.pi * 7 * T) > 0.3)))  # bubbling
+    pour(door + 2.0, 1.1, 0.12, 0.45)                                            # tea poured
+    pour(door + 3.2, 0.8, 0.09, 0.55)
     room = window(zoom + 0.6, ev['morph'][0] + 0.6, 0.6)
     bed(80, 600, 0.04, room)                                                     # warm room tone
     birds(zoom + 1.0, ev['morph'][0], 0.03)                                      # birds outside the open door
@@ -173,13 +225,14 @@ def build(events):
                 add(swell(2.4, 120, 4200, -0.9, 0.5, 1.1, 0.55), t - 0.3, gain=0.32)
                 bed(40, 260, 0.06, window(t - 0.4, t + 2.4, 0.8))
             elif kind == 'logo':
-                add(knock(120, 0.25, 0.15), t, 0, 0.3)
+                touchdown(t - 0.1, 0.35)
 
 
 def main(events_path, wav_path):
     build(json.load(open(events_path)))
-    y = np.tanh(out * 1.5) / np.tanh(1.5)
-    y = y / np.abs(y).max() * 0.89
+    rms = np.sqrt((out ** 2).mean())
+    y = np.tanh(out * (10 ** (-17 / 20) / rms))                                  # loudness to about -17 dB, soft-limited
+    y = y / max(np.abs(y).max(), 1e-9) * 0.89
     n_in, n_out = int(SR * 0.6), int(SR * 2.0)
     y[:n_in] *= np.linspace(0, 1, n_in)[:, None]
     y[-n_out:] *= (np.linspace(1, 0, n_out) ** 1.5)[:, None]

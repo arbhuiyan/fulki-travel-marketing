@@ -7,7 +7,7 @@
 
 The whole film is seen through one airplane window on a warm paper background.
 The departures-board flip icon (`assets/logo/f-board/`) marks every scene and the chat avatar; the full lockup appears only on the final screen.
-No music and no human figures: the soundtrack is real-world sound only (cabin, wind, birds, water, door, suitcase, chat notifications), and the homecoming is told through objects.
+No music, no voice and no human figures. The soundtrack is real-world sound only: terminal murmur and engines at boarding, wind through cloud and over mountains and desert, birds and river over the delta, a heartbeat that quickens as we dive towards home, a door, suitcase, kettle and tea being poured, chat notifications, and a touchdown as the plane completes the logo. The homecoming is told through objects.
 
 | Time | What happens |
 | --- | --- |
